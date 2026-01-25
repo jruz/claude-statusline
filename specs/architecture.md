@@ -22,24 +22,29 @@ Multiple instances can run simultaneously. Each has independent stdin data, but 
 
 ## Model
 
-Each component's data is wrapped in `Result<T, Error>`. The view is responsible for rendering both success and error states.
+Each component's data is wrapped in `Option<Result<T, Error>>`. `None` means not yet loaded, `Some(Ok(..))` is success, `Some(Err(..))` is failure. The view renders all three states.
 
 ```rust
-State {
-    context: ContextWindow { used_percentage: Result<f64, Error> }
-    claude: ClaudeModel { display_name: Result<String, Error> }
-    plan: Plan { progress: Result<Progress, Error> }
-    usage: Usage { five_hour: Result<Window, Error>, seven_day: Result<Window, Error> }
+Model {
+    context: Option<Result<f64, context::Error>>,
+    claude: Option<Result<String, claude::Error>>,
+    plan: Option<Result<Progress, plan::Error>>,
+    usage: Option<Result<Usage, usage::Error>>,
 }
 
 Progress {
-    completed: usize
-    total: usize
+    completed: usize,
+    total: usize,
+}
+
+Usage {
+    five_hour: Window,
+    seven_day: Window,
 }
 
 Window {
-    utilization: f64
-    resets_at: DateTime<Utc>
+    utilization: f64,
+    resets_at: DateTime<Utc>,
 }
 ```
 
@@ -57,28 +62,24 @@ CachedUsage {
 Returns the initial model and startup effects.
 
 ```rust
-fn init() -> (State, Vec<Effect>) {
-    let model = State::default();
-    let effects = vec![
-        Effect::ReadStdin,
-        Effect::ReadPlan,
-        Effect::LoadCache,
-    ];
+fn init() -> (Model, Vec<Effect>) {
+    let model = Model { context: None };
+    let effects = vec![Effect::ReadStdin];
     (model, effects)
 }
 ```
 
-All component fields start as `Err(Pending)` until populated by messages.
+All component fields start as `None` until populated by messages.
 
 ## Messages
 
-All data enters the system as messages. No direct mutations.
+All data enters the system as messages. No direct mutations. Errors are carried inside the message payload.
 
 ```rust
 Msg {
-    StdinReceived(Result<String, io::Error>)
-    PlanLoaded(Result<String, io::Error>)
-    CacheLoaded(Result<CachedUsage, cache::Error>)
+    StdinReceived(Result<String, io::Error>),
+    PlanLoaded(Result<String, io::Error>),
+    CacheLoaded(Result<CachedUsage, cache::Error>),
 }
 ```
 
@@ -99,16 +100,15 @@ CacheLoaded(Err(e))              → Set usage to Err                  → Spawn
 
 ```rust
 Effect {
+    LogError { module: String, error: String },
     ReadStdin,
     ReadPlan,
     LoadCache,
     SpawnBackgroundRefresh,
-    LogError(Error),
 }
 ```
 
-Initial effects (`ReadStdin`, `ReadPlan`, `LoadCache`) produce messages when executed.
-Update effects (`SpawnBackgroundRefresh`, `LogError`) are fire-and-forget.
+`execute` returns `Option<Msg>`. Effects that produce messages return `Some(Msg)`, fire-and-forget effects like `LogError` return `None`.
 
 ## Main Flow
 
@@ -251,70 +251,31 @@ Credential resolution:
 
 ```
 src/
-├── main.rs
+├── main.rs          # TEA runtime: Effect, Model, Msg, init, update, execute
+├── view.rs          # Top-level render
 │
-├── core/
+├── shared/
 │   ├── mod.rs
-│   ├── effect.rs
-│   ├── init.rs
-│   ├── logging.rs
-│   ├── msg.rs
-│   ├── runtime.rs
-│   ├── state.rs
-│   ├── update.rs
-│   └── view.rs
+│   ├── logging.rs       # log_error
+│   └── progress_bar.rs  # progress_bar
 │
 └── components/
     ├── mod.rs
-    │
-    ├── shared/
-    │   ├── mod.rs
-    │   ├── duration.rs
-    │   ├── grid.rs
-    │   └── progress_bar.rs
-    │
-    ├── context/
-    │   ├── mod.rs
-    │   ├── model.rs
-    │   └── view.rs
-    │
-    ├── claude_model/
-    │   ├── mod.rs
-    │   ├── model.rs
-    │   └── view.rs
-    │
-    ├── plan/
-    │   ├── mod.rs
-    │   ├── model.rs
-    │   └── view.rs
-    │
-    └── usage/
-        ├── mod.rs
-        ├── model.rs
-        ├── view.rs
-        ├── background/
-        │   ├── mod.rs
-        │   ├── model.rs
-        │   ├── msg.rs
-        │   ├── effect.rs
-        │   └── update.rs
-        └── effects/
-            ├── mod.rs
-            ├── cache.rs
-            ├── credentials.rs
-            └── api.rs
+    ├── context.rs       # Context window component
+    ├── claude_model.rs  # Model name component
+    ├── plan.rs          # PLAN.md progress component
+    └── usage.rs         # API rate limit component
 ```
-
-### Core
-
-Runtime and app-wide infrastructure.
 
 ### Components
 
-Self-contained TEA units. Each component has its own model/view,
-and optionally msg/update/effect if it has side effects.
+Self-contained units. Each component has its own error enum, parse function, and render function.
 
-`shared/` contains utilities used across components.
+### Shared
+
+`shared/` contains utilities used across components:
+- `logging` - error logging to file
+- `progress_bar` - progress bar rendering
 
 ## Cache
 
@@ -357,12 +318,13 @@ mod usage {
 ### Error Propagation
 
 ```
-Data Source → Result<T, Error> → Model field → View renders success or "err"
+Data Source → Option<Result<T, Error>> → Model field → View renders loading, success, or error
 ```
 
-Each component's model holds `Result<T, Error>`. View pattern matches to render:
-- `Ok(value)` → normal display
-- `Err(_)` → `err` in red
+Each component's model holds `Option<Result<T, Error>>`. View pattern matches to render:
+- `None` → `...` (loading)
+- `Some(Ok(value))` → normal display
+- `Some(Err(_))` → `err` in red
 
 Errors are collected and logged. If any errors occurred, third line shows error count and last error message.
 

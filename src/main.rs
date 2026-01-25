@@ -1,24 +1,25 @@
 mod components;
-mod core;
+mod effect;
+mod model;
+mod shared;
+mod view;
 
-use crate::core::init;
-use crate::core::runtime;
-use crate::core::update;
-use crate::core::view;
+use effect::execute;
+use model::init;
+use model::update;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
 
-    let (mut model, init_effects) = init::init();
-    let messages = runtime::execute_effects(init_effects);
-
-    for msg in messages {
-        let (new_model, _effects) = update::update(model, msg);
-        model = new_model;
+    let (mut model, mut effects) = init();
+    while let Some(effect) = effects.pop() {
+        if let Some(msg) = execute(&effect) {
+            let (new_model, new_effects) = update(model, msg);
+            model = new_model;
+            effects.extend(new_effects);
+        }
     }
 
-    let output = view::render(&model);
-    println!("{output}");
-
+    println!("{}", view::render(&model));
     Ok(())
 }

@@ -1,0 +1,6 @@
+[ignore]
+rules = []
+files = []
+
+[ignore.by-rule]
+no-drop-result = ["src/shared/logging.rs"]

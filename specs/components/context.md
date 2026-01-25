@@ -25,12 +25,12 @@ Received via stdin JSON from Claude Code.
 ## Model
 
 ```rust
-struct ContextWindow {
-    used_percentage: Result<f64, Error>,
-}
+Option<Result<f64, Error>>
 
 enum Error {
     MissingField,
+    ParseJson,
+    ReadStdin,
 }
 ```
 
@@ -38,8 +38,9 @@ enum Error {
 
 | State | Condition | View |
 |-------|-----------|------|
-| Available | `used_percentage` present in stdin | `Context: ████░░░░░░ 42%` |
-| Unavailable | Field missing from stdin | `Context: err` (red) |
+| Loading | Effect not yet executed (`None`) | `Context: ...` |
+| Available | `used_percentage` present in stdin (`Some(Ok(...))`) | `Context: ████░░░░░░ 42%` |
+| Unavailable | Read, parse, or field error (`Some(Err(...))`) | `Context: err` (red) |
 
 ## Error Handling
 
@@ -59,10 +60,11 @@ No caching or background refresh needed.
 ## View
 
 ```rust
-fn render(context: &ContextWindow) -> String {
-    match &context.used_percentage {
-        Ok(pct) => format!("Context: {} {:.0}%", progress_bar(*pct, 10), pct),
-        Err(_) => format!("Context: {}", "err".red()),
+fn render(context: Option<&Result<f64, Error>>) -> String {
+    match context {
+        Some(Ok(pct)) => format!("Context: {} {:.0}%", progress_bar(*pct, 10), pct),
+        Some(Err(_)) => format!("Context: {}", "err".red()),
+        None => format!("Context: ..."),
     }
 }
 ```
@@ -74,8 +76,5 @@ Progress bar width: 10 characters.
 ## File Structure
 
 ```
-components/context/
-├── mod.rs
-├── model.rs    # ContextWindow struct
-└── view.rs     # render function
+components/context.rs    # Error enum, parse, render
 ```
