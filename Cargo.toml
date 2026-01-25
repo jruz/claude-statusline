@@ -4,11 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-color-eyre = "0.6"
+ansi-width = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+color-eyre = "0.6.5"
+dirs = "6.0.0"
 owo-colors = "4"
+reqwest = { version = "0.13.1", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2.0"
+tokio = { version = "1.49.0", features = ["rt", "macros"] }
 
 [lints.rust]
 future_incompatible = "forbid"
@@ -57,3 +62,6 @@ print_stdout = "allow"
 [profile.release]
 codegen-units = 1
 lto = true
+
+[dev-dependencies]
+assert_cmd = "2.1.2"

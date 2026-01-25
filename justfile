@@ -53,4 +53,11 @@ rust-upgrade:
     cargo update
 
 check:
+    just fix
     just rust-check
+
+fix:
+    just rust-fix
+
+test:
+    just rust-test
