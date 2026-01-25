@@ -93,7 +93,7 @@ pub fn pad_right(text: &str, width: usize) -> String
 
 ### Dependencies
 
-- `unicode-width` crate for Unicode display width
+- `console` crate - use `pad_str` with `Alignment::Left` and truncation enabled
 
 ### Examples
 
@@ -119,6 +119,24 @@ Appends errors to log file.
 ```rust
 pub fn log_error(module: &str, error: &str)
 ```
+
+### Error Enum
+
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Cache directory not found")]
+    CacheDirNotFound,
+
+    #[error("Failed to write log entry")]
+    WriteEntry(
+        #[source]
+        std::io::Error,
+    ),
+}
+```
+
+Internal functions return `Result<(), Error>`. The public `log_error` function calls the internal function and silently drops any error.
 
 ### Requirements
 
