@@ -25,9 +25,9 @@ Multiple instances can run simultaneously. Each has independent stdin data, but 
 Each component's data is wrapped in `Result<T, Error>`. The view is responsible for rendering both success and error states.
 
 ```rust
-AppModel {
+State {
     context: ContextWindow { used_percentage: Result<f64, Error> }
-    model: ClaudeModel { display_name: Result<String, Error> }
+    claude: ClaudeModel { display_name: Result<String, Error> }
     plan: Plan { progress: Result<Progress, Error> }
     usage: Usage { five_hour: Result<Window, Error>, seven_day: Result<Window, Error> }
 }
@@ -57,8 +57,8 @@ CachedUsage {
 Returns the initial model and startup effects.
 
 ```rust
-fn init() -> (AppModel, Vec<Effect>) {
-    let model = AppModel::default();
+fn init() -> (State, Vec<Effect>) {
+    let model = State::default();
     let effects = vec![
         Effect::ReadStdin,
         Effect::ReadPlan,
@@ -260,6 +260,7 @@ src/
 │   ├── logging.rs
 │   ├── msg.rs
 │   ├── runtime.rs
+│   ├── state.rs
 │   ├── update.rs
 │   └── view.rs
 │
