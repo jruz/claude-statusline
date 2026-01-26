@@ -1,83 +1,10 @@
 # Testing
 
-Integration tests verify the full application flow using a mock API server.
+Integration tests verify parsing and rendering by piping JSON through stdin.
 
 ## Test Environment
 
-```
-ANTHROPIC_API_URL=http://localhost:3000
-ANTHROPIC_API_KEY=test-api-key
-CLAUDE_STATUSLINE_SKIP_KEYCHAIN=true
-CLAUDE_STATUSLINE_CACHE_DIR=/tmp/claude-statusline-test
-```
-
-## Mock Server
-
-Bun server at `tests/mock-server.ts` that simulates Anthropic API.
-
-### Endpoints
-
-**GET /v1/rate_limits**
-
-Success response:
-```json
-{
-  "rate_limits": [
-    { "type": "requests", "utilization": 0.6, "resets_at": "2026-01-25T15:30:00Z" },
-    { "type": "tokens", "utilization": 0.4, "resets_at": "2026-01-30T00:00:00Z" }
-  ]
-}
-```
-
-### Scenarios
-
-Control mock behavior via query params or headers:
-
-| Scenario | Trigger | Response |
-|----------|---------|----------|
-| Success | Default | 200 with rate limits |
-| Server error | `?scenario=error` | 500 Internal Server Error |
-| Timeout | `?scenario=timeout` | No response for 10s |
-| Malformed JSON | `?scenario=malformed` | 200 with invalid JSON |
-| Empty rate limits | `?scenario=empty` | 200 with empty array |
-
-### File
-
-`tests/mock-server.ts`
-
-```typescript
-const server = Bun.serve({
-  port: 3000,
-  fetch(req) {
-    const url = new URL(req.url);
-    const scenario = url.searchParams.get("scenario");
-
-    if (url.pathname === "/v1/rate_limits") {
-      if (scenario === "error") {
-        return new Response("Internal Server Error", { status: 500 });
-      }
-      if (scenario === "timeout") {
-        return new Promise(() => {}); // never resolves
-      }
-      if (scenario === "malformed") {
-        return new Response("not json", { status: 200 });
-      }
-      if (scenario === "empty") {
-        return Response.json({ rate_limits: [] });
-      }
-      return Response.json({
-        rate_limits: [
-          { type: "requests", utilization: 0.6, resets_at: "2026-01-25T15:30:00Z" },
-          { type: "tokens", utilization: 0.4, resets_at: "2026-01-30T00:00:00Z" },
-        ],
-      });
-    }
-    return new Response("Not Found", { status: 404 });
-  },
-});
-```
-
----
+Tests run in isolated temp directories when testing file-based features (PLAN.md).
 
 ## Integration Tests
 
@@ -85,59 +12,53 @@ Tests at `tests/integration.rs` using `assert_cmd` crate.
 
 ### Test Cases
 
-#### Happy Path
+#### Context Component
 
-| Test | Stdin | Expected Output |
-|------|-------|-----------------|
-| Full status line | `{"model":{"display_name":"Opus"},"context_window":{"used_percentage":42}}` | `Context: ████░░ 42% \| Model: Opus \| Plan: ... \| 5h: ██░ 60% \| 7d: █░ 40%` |
-| Context only | `{"context_window":{"used_percentage":100}}` | `Context: ██████ 100% \| Model: err \| Plan: ... \| 5h: ... \| 7d: ...` |
-| Model only | `{"model":{"display_name":"Sonnet"}}` | `Context: err \| Model: Sonnet \| Plan: ... \| 5h: ... \| 7d: ...` |
+| Test | Stdin | Expected |
+|------|-------|----------|
+| Percentage display | `{"context_window":{"used_percentage":42.5}}` | `Context: ... 42%` |
+| Missing field | `{}` | `Context: ... 0%` |
+| Model-only JSON | `{"model":{"display_name":"X"}}` | `Context: ... 0%` |
+| Invalid JSON | `not json` | `Context: err` |
 
-#### Error States
+#### Model Component
 
-| Test | Condition | Expected Output |
-|------|-----------|-----------------|
-| Empty stdin | `{}` | `Context: err \| Model: err \| Plan: ... \| 5h: ... \| 7d: ... \| Errors(N)` |
-| Invalid JSON | `not json` | `Context: err \| Model: err \| Plan: err \| 5h: err \| 7d: err \| Errors(N)` |
-| API error | `?scenario=error` | `... \| 5h: err \| 7d: err \| Errors(N)` |
-| API timeout | `?scenario=timeout` | Uses cached data or shows err |
+| Test | Stdin | Expected |
+|------|-------|----------|
+| Display name | `{"model":{"display_name":"Opus 4.5"}}` | `Model: Opus 4.5` |
+| Missing field | `{}` | `Model: err` |
 
-#### Cache Behavior
+#### Plan Component
 
-| Test | Condition | Expected Behavior |
-|------|-----------|-------------------|
-| Fresh cache | Cache < 60s old | No background refresh spawned |
-| Stale cache | Cache >= 60s old | Background refresh spawned |
-| No cache | Cache missing | Background refresh spawned |
-| Lock held | Lock file exists | Skip refresh, use stale cache |
+| Test | Condition | Expected |
+|------|-----------|----------|
+| With checkboxes | PLAN.md has `- [x]` and `- [ ]` | `PLAN.md: ... N%` |
+| No checkboxes | PLAN.md exists, no checkboxes | `PLAN.md: ... 100%` |
+| File missing | No PLAN.md | `PLAN.md: file-not-found` |
 
----
+#### Usage Component
+
+| Test | Condition | Expected |
+|------|-----------|----------|
+| No cache | Cache file missing | Shows `5h:` and `7d:` labels |
+
+#### Full Output
+
+| Test | Condition | Expected |
+|------|-----------|----------|
+| Two lines | Valid input | Line 1: Context, Model, 5h / Line 2: PLAN.md, 7d |
 
 ## Running Tests
 
 ```bash
-# Start mock server (in background)
-bun tests/mock-server.ts &
-
-# Run integration tests
-cargo nextest run
-
-# Stop mock server
-pkill -f "bun tests/mock-server.ts"
-```
-
-Or via justfile:
-
-```bash
 just test
+# or
+cargo nextest run
 ```
-
----
 
 ## File Structure
 
 ```
 tests/
-├── mock-server.ts    # Bun mock API server
 └── integration.rs    # Rust integration tests
 ```
