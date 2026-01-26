@@ -109,7 +109,7 @@ fn render_five_hour(usage: &Usage) -> String {
     match &usage.five_hour {
         Ok(window) => format!(
             "5h: {} {:.0}% ({})",
-            progress_bar::render(window.utilization, 5),
+            progress_bar::render(window.utilization, 10),
             window.utilization,
             format_remaining(window.resets_at)
         ),
@@ -121,7 +121,7 @@ fn render_seven_day(usage: &Usage) -> String {
     match &usage.seven_day {
         Ok(window) => format!(
             "7d: {} {:.0}% ({})",
-            progress_bar::render(window.utilization, 5),
+            progress_bar::render(window.utilization, 10),
             window.utilization,
             format_remaining(window.resets_at)
         ),
