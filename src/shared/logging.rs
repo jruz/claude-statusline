@@ -14,7 +14,7 @@ fn write_log_entry(module: &str, error: &str) -> Result<(), std::io::Error> {
     fs::create_dir_all(&log_dir)?;
 
     let log_path = log_dir.join("error.log");
-    let timestamp = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ");
+    let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z");
     let entry = format!("{timestamp} [{module}] {error}\n");
 
     let mut file = fs::OpenOptions::new()
