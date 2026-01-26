@@ -61,3 +61,6 @@ fix:
 
 test:
     just rust-test
+
+demo:
+    echo '{"context_window":{"used_percentage":42},"model":{"display_name":"Opus 4.5"}}' | cargo run --quiet
