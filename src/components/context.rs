@@ -5,9 +5,6 @@ use crate::shared::progress_bar;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Missing context_window field")]
-    MissingField,
-
     #[error("Failed to parse JSON")]
     ParseJson(#[source] serde_json::Error),
 
@@ -29,10 +26,7 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<f64, Error> {
     let input = result.map_err(Error::ReadStdin)?;
     let parsed: StdinJson = serde_json::from_str(&input).map_err(Error::ParseJson)?;
 
-    parsed
-        .context_window
-        .map(|cw| cw.used_percentage)
-        .ok_or(Error::MissingField)
+    Ok(parsed.context_window.map_or(0.0, |cw| cw.used_percentage))
 }
 
 pub fn render(context: Option<&Result<f64, Error>>) -> String {

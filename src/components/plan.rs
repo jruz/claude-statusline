@@ -58,8 +58,9 @@ pub fn render(plan: Option<&Result<Progress, Error>>) -> String {
             };
             format!("{} {:.0}%", progress_bar::render(pct, 10), pct)
         }
+        Some(Err(Error::FileNotFound)) => "file-not-found".red().to_string(),
         Some(Err(_err)) => "err".red().to_string(),
         None => "...".to_string(),
     };
-    format!("Plan:    {value}")
+    format!("PLAN.md: {value}")
 }

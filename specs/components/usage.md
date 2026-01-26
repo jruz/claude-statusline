@@ -13,33 +13,42 @@ Displays API rate limit utilization with progress bars and reset times.
 
 **Scope:** Shared across all instances (cached at `~/.cache/claude-statusline/usage.json`)
 
-### Primary: Anthropic Rate Limits API
+### Primary: Anthropic OAuth Usage API
 
 ```
-GET {base_url}/v1/rate_limits
+GET https://api.anthropic.com/api/oauth/usage
 Headers:
-  x-api-key: {api_key}
-  anthropic-version: 2023-06-01
+  Authorization: Bearer {access_token}
+  anthropic-beta: oauth-2025-04-20
 ```
-
-Base URL: `ANTHROPIC_API_URL` env var, default `https://api.anthropic.com`
 
 Response:
 
 ```json
 {
-  "rate_limits": [
-    { "type": "requests", "utilization": 0.6, "resets_at": "2026-01-25T15:30:00Z" },
-    { "type": "tokens", "utilization": 0.4, "resets_at": "2026-01-30T00:00:00Z" }
-  ]
+  "five_hour": { "utilization": 14.0, "resets_at": "2026-01-25T15:30:00Z" },
+  "seven_day": { "utilization": 53.0, "resets_at": "2026-01-30T00:00:00Z" }
 }
 ```
 
+Note: `utilization` is a percentage (0-100), not a fraction.
+
 ### Credentials
 
-**Resolution:**
-1. If `CLAUDE_STATUSLINE_SKIP_KEYCHAIN=true`, use `ANTHROPIC_API_KEY` env var
-2. Otherwise, read from macOS Keychain: `security find-generic-password -s "anthropic-api-key" -w`
+Read from Claude Code's OAuth credentials in macOS Keychain:
+
+```
+security find-generic-password -s "Claude Code-credentials" -w
+```
+
+Returns JSON with structure:
+```json
+{
+  "claudeAiOauth": {
+    "accessToken": "sk-ant-oat01-..."
+  }
+}
+```
 
 ### Cache
 

@@ -1,14 +1,18 @@
 use std::io::Read as _;
 
+use crate::components::usage;
 use crate::shared;
 
 pub enum Effect {
     LogError { module: String, error: String },
     ReadFile { path: std::path::PathBuf },
     ReadStdin,
+    ReadUsageCache,
+    SpawnBackgroundRefresh,
 }
 
 pub enum Msg {
+    CacheLoaded(Result<String, std::io::Error>),
     PlanLoaded(Result<String, std::io::Error>),
     StdinReceived(Result<String, std::io::Error>),
 }
@@ -28,5 +32,43 @@ pub fn execute(effect: &Effect) -> Option<Msg> {
             let result = std::io::stdin().read_to_string(&mut input).map(|_| input);
             Some(Msg::StdinReceived(result))
         }
+        Effect::ReadUsageCache => {
+            let result = match usage::cache_path() {
+                Some(path) => std::fs::read_to_string(path),
+                None => Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "cache directory not found",
+                )),
+            };
+            Some(Msg::CacheLoaded(result))
+        }
+        Effect::SpawnBackgroundRefresh => {
+            spawn_background_refresh();
+            None
+        }
+    }
+}
+
+fn spawn_background_refresh() {
+    let exe = match std::env::current_exe() {
+        Ok(path) => path,
+        Err(err) => {
+            shared::logging::log_error("usage", &format!("failed to get current exe: {err}"));
+            return;
+        }
+    };
+
+    let result = std::process::Command::new(exe)
+        .arg("--refresh-usage")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
+
+    if let Err(err) = result {
+        shared::logging::log_error(
+            "usage",
+            &format!("failed to spawn background refresh: {err}"),
+        );
     }
 }

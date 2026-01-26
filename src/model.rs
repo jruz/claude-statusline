@@ -1,6 +1,7 @@
 use crate::components::claude_model;
 use crate::components::context;
 use crate::components::plan;
+use crate::components::usage;
 use crate::effect::Effect;
 use crate::effect::Msg;
 
@@ -8,6 +9,7 @@ pub struct Model {
     pub claude: Option<Result<String, claude_model::Error>>,
     pub context: Option<Result<f64, context::Error>>,
     pub plan: Option<Result<plan::Progress, plan::Error>>,
+    pub usage: Option<Result<usage::Usage, usage::Error>>,
 }
 
 pub fn init() -> (Model, Vec<Effect>) {
@@ -15,6 +17,7 @@ pub fn init() -> (Model, Vec<Effect>) {
         claude: None,
         context: None,
         plan: None,
+        usage: None,
     };
     (
         model,
@@ -23,6 +26,7 @@ pub fn init() -> (Model, Vec<Effect>) {
             Effect::ReadFile {
                 path: std::path::PathBuf::from("PLAN.md"),
             },
+            Effect::ReadUsageCache,
         ],
     )
 }
@@ -76,6 +80,37 @@ pub fn update(model: Model, msg: Msg) -> (Model, Vec<Effect>) {
                 Model {
                     claude: Some(claude_model_result),
                     context: Some(context_result),
+                    ..model
+                },
+                effects,
+            )
+        }
+        Msg::CacheLoaded(result) => {
+            let mut effects = vec![];
+
+            let usage_result = match result {
+                Ok(content) => {
+                    if usage::is_cache_stale(&content) {
+                        effects.push(Effect::SpawnBackgroundRefresh);
+                    }
+                    usage::parse_cache(&content)
+                }
+                Err(err) => {
+                    effects.push(Effect::SpawnBackgroundRefresh);
+                    Err(usage::Error::CacheRead(err.to_string()))
+                }
+            };
+
+            if let Err(err) = &usage_result {
+                effects.push(Effect::LogError {
+                    module: "usage".to_owned(),
+                    error: err.to_string(),
+                });
+            }
+
+            (
+                Model {
+                    usage: Some(usage_result),
                     ..model
                 },
                 effects,

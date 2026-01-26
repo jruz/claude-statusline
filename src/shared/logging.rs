@@ -6,11 +6,11 @@ pub fn log_error(module: &str, error: &str) {
 }
 
 fn write_log_entry(module: &str, error: &str) -> Result<(), std::io::Error> {
-    let cache_dir = dirs::cache_dir().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "Cache directory not found")
+    let home_dir = dirs::home_dir().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::NotFound, "Home directory not found")
     })?;
 
-    let log_dir = cache_dir.join("claude-statusline");
+    let log_dir = home_dir.join(".cache").join("claude-statusline");
     fs::create_dir_all(&log_dir)?;
 
     let log_path = log_dir.join("error.log");
