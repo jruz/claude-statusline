@@ -97,14 +97,20 @@ pub fn update(model: Model, msg: Msg) -> (Model, Vec<Effect>) {
                 }
                 Err(err) => {
                     effects.push(Effect::SpawnBackgroundRefresh);
+                    if err.kind() != std::io::ErrorKind::NotFound {
+                        effects.push(Effect::LogError {
+                            module: "usage".to_owned(),
+                            error: format!("cache read: {err}"),
+                        });
+                    }
                     Err(usage::Error::CacheRead(err.to_string()))
                 }
             };
 
-            if let Err(err) = &usage_result {
+            if let Err(usage::Error::CacheParse(parse_err)) = &usage_result {
                 effects.push(Effect::LogError {
                     module: "usage".to_owned(),
-                    error: err.to_string(),
+                    error: format!("cache parse: {parse_err}"),
                 });
             }
 
