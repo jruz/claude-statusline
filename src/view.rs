@@ -5,8 +5,8 @@ use crate::components::usage;
 use crate::model::Model;
 use crate::shared::grid;
 
-const COL1_WIDTH: usize = 25;
-const COL2_WIDTH: usize = 20;
+const COL1_WIDTH: usize = 27;
+const COL2_WIDTH: usize = 18;
 const LOADING_5H: &str = "5h: ...";
 const LOADING_7D: &str = "7d: ...";
 
