@@ -19,14 +19,25 @@ struct StdinJson {
 
 #[derive(Debug, Deserialize)]
 struct ContextWindowJson {
-    used_percentage: f64,
+    used_percentage: Option<f64>,
 }
 
 pub fn parse(result: Result<String, std::io::Error>) -> Result<f64, Error> {
     let input = result.map_err(Error::ReadStdin)?;
     let parsed: StdinJson = serde_json::from_str(&input).map_err(Error::ParseJson)?;
 
-    Ok(parsed.context_window.map_or(0.0, |cw| cw.used_percentage))
+    let default: f64 = 0.0;
+    let percentage = match parsed.context_window {
+        Some(ContextWindowJson {
+            used_percentage: Some(pct),
+        }) => pct,
+        Some(ContextWindowJson {
+            used_percentage: None,
+        })
+        | None => default,
+    };
+
+    Ok(percentage)
 }
 
 pub fn render(context: Option<&Result<f64, Error>>) -> String {

@@ -55,6 +55,10 @@ pub fn update(model: Model, msg: Msg) -> (Model, Vec<Effect>) {
         Msg::StdinReceived(result) => {
             let mut effects = vec![];
 
+            let input_for_log = result
+                .as_ref()
+                .map_or_else(|err| format!("<io error: {err}>"), Clone::clone);
+
             let claude_model_result = claude_model::parse(
                 result
                     .as_ref()
@@ -64,7 +68,7 @@ pub fn update(model: Model, msg: Msg) -> (Model, Vec<Effect>) {
             if let Err(err) = &claude_model_result {
                 effects.push(Effect::LogError {
                     module: "claude_model".to_owned(),
-                    error: err.to_string(),
+                    error: format!("{err} | input: {input_for_log}"),
                 });
             }
 
@@ -72,7 +76,7 @@ pub fn update(model: Model, msg: Msg) -> (Model, Vec<Effect>) {
             if let Err(err) = &context_result {
                 effects.push(Effect::LogError {
                     module: "context".to_owned(),
-                    error: err.to_string(),
+                    error: format!("{err} | input: {input_for_log}"),
                 });
             }
 
