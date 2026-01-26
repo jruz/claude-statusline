@@ -30,7 +30,7 @@ pub fn render(model: &Model) -> String {
         seven_day
     );
 
-    format!("{line1}\n{line2}")
+    format!("{line1}\n{line2}\n\u{200B}")
 }
 
 fn parse_usage_lines(model: &Model) -> (String, String) {
