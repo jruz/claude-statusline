@@ -38,29 +38,22 @@ fn cleanup_lock(lock_path: &std::path::Path) {
 }
 
 fn fetch_usage(access_token: &str) -> Result<crate::components::usage::Response, String> {
-    use crate::components::usage::Response;
+    let url = format!("{DEFAULT_API_URL}/api/oauth/usage");
 
-    let output = std::process::Command::new("curl")
-        .args([
-            "--silent",
-            "--fail",
-            &format!("{DEFAULT_API_URL}/api/oauth/usage"),
-            "--header",
-            &format!("Authorization: Bearer {access_token}"),
-            "--header",
-            "anthropic-beta: oauth-2025-04-20",
-        ])
-        .output()
-        .map_err(|err| format!("curl failed: {err}"))?;
+    let response = reqwest::blocking::Client::new()
+        .get(&url)
+        .header("Authorization", format!("Bearer {access_token}"))
+        .header("anthropic-beta", "oauth-2025-04-20")
+        .send()
+        .map_err(|err| format!("request failed: {err}"))?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("curl error: {stderr}"));
+    if !response.status().is_success() {
+        return Err(format!("api error: {}", response.status()));
     }
 
-    let body = String::from_utf8(output.stdout).map_err(|err| format!("invalid utf8: {err}"))?;
-
-    serde_json::from_str::<Response>(&body).map_err(|err| format!("parse failed: {err}"))
+    response
+        .json()
+        .map_err(|err| format!("parse failed: {err}"))
 }
 
 fn read_access_token() -> Result<String, String> {
