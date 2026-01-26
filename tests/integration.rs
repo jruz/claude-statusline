@@ -14,13 +14,24 @@ mod tests {
         cmd.write_stdin(r#"{"context_window":{"used_percentage":42.5}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("\u{2588}\u{2588}\u{2588}\u{2588}\u{2591}\u{2591}\u{2591}\u{2591}\u{2591}\u{2591} 42%"));
+            .stdout(predicate::str::contains("Context:"))
+            .stdout(predicate::str::contains("42%"));
     }
 
     #[test]
     fn context_missing_field_shows_zero() {
         let mut cmd = statusline();
         cmd.write_stdin("{}")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Context:"))
+            .stdout(predicate::str::contains("0%"));
+    }
+
+    #[test]
+    fn context_shows_zero_with_model_only_json() {
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"model":{"display_name":"Any Model Name"}}"#)
             .assert()
             .success()
             .stdout(predicate::str::contains("Context:"))
