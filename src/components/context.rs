@@ -31,7 +31,7 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<f64, Error> {
 
 pub fn render(context: Option<&Result<f64, Error>>) -> String {
     let value = match context {
-        Some(Ok(pct)) => format!("{} {pct:.0}%", progress_bar::render(*pct, 10)),
+        Some(Ok(pct)) => format!("{} {:>3.0}%", progress_bar::render(*pct, 10), pct),
         Some(Err(_err)) => "err".red().to_string(),
         None => "...".to_string(),
     };

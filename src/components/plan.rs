@@ -56,7 +56,7 @@ pub fn render(plan: Option<&Result<Progress, Error>>) -> String {
             } else {
                 (progress.completed as f64 / progress.total as f64) * 100.0
             };
-            format!("{} {:.0}%", progress_bar::render(pct, 10), pct)
+            format!("{} {:>3.0}%", progress_bar::render(pct, 10), pct)
         }
         Some(Err(Error::FileNotFound)) => "file-not-found".red().to_string(),
         Some(Err(_err)) => "err".red().to_string(),
