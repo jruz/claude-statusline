@@ -2,7 +2,7 @@
 
 A terminal status line for Claude Code sessions.
 
-![Screenshot](screenshot.png)
+<img src="screenshot.png" width="600" alt="Screenshot of claude-statusline showing context, model, plan progress, and API usage">
 
 ## Install
 
@@ -75,4 +75,4 @@ Errors are appended to:
 
 ## License
 
-0BSD
+[0BSD](LICENSE)

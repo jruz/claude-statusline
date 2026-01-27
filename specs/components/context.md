@@ -47,6 +47,7 @@ enum Error {
 If the field is missing from stdin, display `err` in red in place of the component.
 
 Error logged to `~/.cache/claude-statusline/error.log`:
+
 ```
 2026-01-25T12:30:45Z [context] Missing context_window in stdin
 ```

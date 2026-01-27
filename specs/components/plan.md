@@ -15,6 +15,7 @@ Reads `PLAN.md` from current working directory.
 **Scope:** Per-instance (not cached, not shared)
 
 Parses markdown checkboxes:
+
 - `- [ ]` = incomplete
 - `- [x]` or `- [X]` = complete
 
@@ -50,6 +51,7 @@ enum Error {
 If PLAN.md is missing or unreadable, display `err` in red.
 
 Error logged to `~/.cache/claude-statusline/error.log`:
+
 ```
 2026-01-25T12:30:45Z [plan] PLAN.md not found in current directory
 ```

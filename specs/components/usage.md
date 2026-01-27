@@ -42,6 +42,7 @@ security find-generic-password -s "Claude Code-credentials" -w
 ```
 
 Returns JSON with structure:
+
 ```json
 {
   "claudeAiOauth": {
@@ -114,6 +115,7 @@ struct Response {
 All errors are logged to `~/.cache/claude-statusline/error.log` and displayed as `err` in red.
 
 Log format:
+
 ```
 2026-01-25T12:30:45Z [usage] API request failed: connection refused
 ```
@@ -238,6 +240,7 @@ View is responsible for rendering both success and error states.
 Progress bar width: 5 characters.
 
 Time remaining format:
+
 - < 1 hour: `Xm`
 - < 24 hours: `Xh Ym`
 - >= 24 hours: `Xd Yh`

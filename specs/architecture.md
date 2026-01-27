@@ -3,6 +3,7 @@
 ## Execution Model
 
 One-shot process invoked by Claude Code:
+
 - Called on every conversation message update
 - At most every 300ms
 - Receives JSON via stdin
@@ -204,6 +205,7 @@ Line 3: Errors(N): {last error}                     (only if errors > 0)
 ```
 
 Column widths using `unicode-width` for proper display width handling:
+
 - Column 1: 25 chars (Context, Plan)
 - Column 2: 20 chars (Model, empty)
 - Column 3: 30 chars (5h, 7d)
@@ -244,6 +246,7 @@ For testing, external dependencies can be overridden:
 | `CLAUDE_STATUSLINE_SKIP_KEYCHAIN` | `false` | Skip keychain, use `ANTHROPIC_API_KEY` |
 
 Credential resolution:
+
 1. If `CLAUDE_STATUSLINE_SKIP_KEYCHAIN=true`, use `ANTHROPIC_API_KEY` env var
 2. Otherwise, read from macOS Keychain
 
@@ -274,6 +277,7 @@ Self-contained units. Each component has its own error enum, parse function, and
 ### Shared
 
 `shared/` contains utilities used across components:
+
 - `logging` - error logging to file
 - `progress_bar` - progress bar rendering
 
@@ -322,6 +326,7 @@ Data Source → Option<Result<T, Error>> → Model field → View renders loadin
 ```
 
 Each component's model holds `Option<Result<T, Error>>`. View pattern matches to render:
+
 - `None` → `...` (loading)
 - `Some(Ok(value))` → normal display
 - `Some(Err(_))` → `err` in red
@@ -346,6 +351,7 @@ Errors(2): API request failed
 - Append-only
 
 Example:
+
 ```
 2026-01-25T12:30:45Z [credentials] Failed to read credentials from keychain: No password found
 ```
