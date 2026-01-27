@@ -29,7 +29,9 @@ pub fn execute(effect: &Effect) -> Option<Msg> {
         }
         Effect::ReadStdin => {
             let mut input = String::new();
-            let result = std::io::stdin().read_to_string(&mut input).map(|_| input);
+            let result = std::io::stdin()
+                .read_to_string(&mut input)
+                .map(|_bytes_read| input);
             Some(Msg::StdinReceived(result))
         }
         Effect::ReadUsageCache => {

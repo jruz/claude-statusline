@@ -55,9 +55,10 @@ pub fn update(model: Model, msg: Msg) -> (Model, Vec<Effect>) {
         Msg::StdinReceived(result) => {
             let mut effects = vec![];
 
-            let input_for_log = result
-                .as_ref()
-                .map_or_else(|err| format!("<io error: {err}>"), Clone::clone);
+            let input_for_log = match &result {
+                Ok(content) => content.clone(),
+                Err(err) => format!("<io error: {err}>"),
+            };
 
             let claude_model_result = claude_model::parse(
                 result
