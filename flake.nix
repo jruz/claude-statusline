@@ -21,20 +21,22 @@
           cargo-nextest
           cargo-outdated
           cargo-watch
+          deadnix
           fd
-          openssl
+          just
+          markdownlint-cli2
+          nixfmt-classic
           pkg-config
           ripgrep
           rust
           sqlx-cli
+          statix
+          taplo
+          woodpecker-cli
+          yamllint
         ];
-        darwinPackages = with pkgs; [
-          libiconv
-        ];
-        linuxPackages = with pkgs; [
-          glibc
-          glibcLocales
-        ];
+        darwinPackages = with pkgs; [ libiconv ];
+        linuxPackages = with pkgs; [ glibc glibcLocales ];
         platformPackages =
           if pkgs.stdenv.isDarwin then
             commonPackages ++ darwinPackages
@@ -61,7 +63,8 @@
             echo "  ───────────────────────────"
             echo "  Rust:        ${rustVersion}"
             echo "  Nextest:     ${pkgs.cargo-nextest.version}"
-            echo "  SQLx:        ${pkgs.sqlx-cli.version}"
+            echo "  Taplo:       ${pkgs.taplo.version}"
+            echo "  Woodpecker:  ${pkgs.woodpecker-cli.version}"
             echo ""
           '' + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
             export LOCALE_ARCHIVE="${pkgs.glibcLocales}/lib/locale/locale-archive"
