@@ -19,6 +19,56 @@ mod tests {
     }
 
     #[test]
+    fn context_color_green_at_39_percent() {
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":39}}"#)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("\x1b[32m"))
+            .stdout(predicate::str::contains("39%"));
+    }
+
+    #[test]
+    fn context_color_yellow_at_40_percent() {
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":40}}"#)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("\x1b[33m"))
+            .stdout(predicate::str::contains("40%"));
+    }
+
+    #[test]
+    fn context_color_yellow_at_59_percent() {
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":59}}"#)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("\x1b[33m"))
+            .stdout(predicate::str::contains("59%"));
+    }
+
+    #[test]
+    fn context_color_red_at_60_percent() {
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":60}}"#)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("\x1b[31m"))
+            .stdout(predicate::str::contains("60%"));
+    }
+
+    #[test]
+    fn context_color_red_at_100_percent() {
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":100}}"#)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("\x1b[31m"))
+            .stdout(predicate::str::contains("100%"));
+    }
+
+    #[test]
     fn context_missing_field_shows_zero() {
         let mut cmd = statusline();
         cmd.write_stdin("{}")

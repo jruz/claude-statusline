@@ -120,24 +120,32 @@ pub fn render(usage: Option<&Result<Usage, Error>>) -> String {
 
 fn render_five_hour(usage: &Usage) -> String {
     match &usage.five_hour {
-        Ok(window) => format!(
-            "5h: {} {:>3.0}% ({})",
-            progress_bar::render(window.utilization, 10),
-            window.utilization,
-            format_remaining(window.resets_at)
-        ),
+        Ok(window) => {
+            let bar = progress_bar::render(window.utilization, 10);
+            format!(
+                "5h: {}{} {:>3.0}% ({})",
+                bar.filled.green(),
+                bar.empty,
+                window.utilization,
+                format_remaining(window.resets_at)
+            )
+        }
         Err(_err) => format!("5h: {}", "err".red()),
     }
 }
 
 fn render_seven_day(usage: &Usage) -> String {
     match &usage.seven_day {
-        Ok(window) => format!(
-            "7d: {} {:>3.0}% ({})",
-            progress_bar::render(window.utilization, 10),
-            window.utilization,
-            format_remaining(window.resets_at)
-        ),
+        Ok(window) => {
+            let bar = progress_bar::render(window.utilization, 10);
+            format!(
+                "7d: {}{} {:>3.0}% ({})",
+                bar.filled.green(),
+                bar.empty,
+                window.utilization,
+                format_remaining(window.resets_at)
+            )
+        }
         Err(_err) => format!("7d: {}", "err".red()),
     }
 }

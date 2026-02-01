@@ -8,6 +8,14 @@ Displays context window usage as a progress bar with percentage.
 Context: ████░░░░░░ 42%
 ```
 
+## Progress Bar Colors
+
+| Range | Color |
+|-------|-------|
+| 0-39% | Green (default) |
+| 40-59% | Orange |
+| 60%+ | Red |
+
 ## Data Source
 
 Received via stdin JSON from Claude Code.
@@ -60,19 +68,9 @@ No caching or background refresh needed.
 
 ## View
 
-```rust
-fn render(context: Option<&Result<f64, Error>>) -> String {
-    match context {
-        Some(Ok(pct)) => format!("Context: {} {:.0}%", progress_bar(*pct, 10), pct),
-        Some(Err(_)) => format!("Context: {}", "err".red()),
-        None => format!("Context: ..."),
-    }
-}
-```
+Renders progress bar with percentage. Progress bar width: 10 characters.
 
-View is responsible for rendering both success and error states.
-
-Progress bar width: 10 characters.
+Bar color based on thresholds. Percentage text colored only for yellow and red ranges (default color for green).
 
 ## File Structure
 
