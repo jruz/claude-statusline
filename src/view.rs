@@ -2,6 +2,7 @@ use crate::components::claude_model;
 use crate::components::context;
 use crate::components::plan;
 use crate::components::usage;
+use crate::components::version;
 use crate::model::Model;
 use crate::shared::grid;
 
@@ -14,6 +15,7 @@ pub fn render(model: &Model) -> String {
     let context_text = context::render(model.context.as_ref());
     let model_text = claude_model::render(model.claude.as_ref());
     let plan_text = plan::render(model.plan.as_ref());
+    let version_text = version::render(model.version.as_ref());
     let (five_hour, seven_day) = parse_usage_lines(model);
 
     let line1 = format!(
@@ -26,7 +28,7 @@ pub fn render(model: &Model) -> String {
     let line2 = format!(
         "{}{}{}",
         grid::pad_right(&plan_text, COL1_WIDTH),
-        grid::pad_right("", COL2_WIDTH),
+        grid::pad_right(&version_text, COL2_WIDTH),
         seven_day
     );
 

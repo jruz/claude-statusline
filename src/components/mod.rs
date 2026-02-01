@@ -2,3 +2,4 @@ pub mod claude_model;
 pub mod context;
 pub mod plan;
 pub mod usage;
+pub mod version;

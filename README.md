@@ -27,6 +27,7 @@ Add to `~/.claude/settings.json`:
 
 - **Context**: Current context window usage percentage
 - **Model**: Active Claude model name
+- **Version**: Claude Code version with update indicator
 - **PLAN.md**: Progress on tasks in PLAN.md
 - **5h/7d**: API rate limit usage with time until reset
 
@@ -38,6 +39,7 @@ Add to `~/.claude/settings.json`:
 |-----------|--------|
 | Context | `context_window.used_percentage` from stdin JSON |
 | Model | `model.display_name` from stdin JSON |
+| Version | `claude --version` + npm registry for update check |
 | PLAN.md | Counts `- [x]` and `- [ ]` checkboxes in `./PLAN.md` |
 | 5h/7d | Anthropic API (`/api/oauth/usage`) via background fetch |
 
@@ -53,16 +55,18 @@ security find-generic-password -s "Claude Code-credentials" -w
 
 ### Cache
 
-Usage data is fetched in the background and cached at:
+Data is fetched in the background and cached at:
 
 ```
-~/.cache/claude-statusline/usage.json
+~/.cache/claude-statusline/usage.json    # API usage, 60s TTL
+~/.cache/claude-statusline/version.json  # Latest version, 1h TTL
 ```
 
-Cache refreshes every 60 seconds. A lock file prevents concurrent fetches:
+Lock files prevent concurrent fetches:
 
 ```
 ~/.cache/claude-statusline/usage.lock
+~/.cache/claude-statusline/version.lock
 ```
 
 ### Logs

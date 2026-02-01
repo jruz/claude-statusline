@@ -18,6 +18,9 @@ fn main() -> color_eyre::Result<()> {
         install_panic_hook();
         return run_background_refresh();
     }
+    if args.get(1).is_some_and(|arg| arg == "--refresh-version") {
+        return run_version_refresh();
+    }
 
     let (mut model, mut effects) = init();
     while let Some(effect) = effects.pop() {
@@ -163,4 +166,84 @@ fn run_background_refresh() -> color_eyre::Result<()> {
 
     cleanup_lock(&lock_path);
     Ok(())
+}
+
+fn run_version_refresh() -> color_eyre::Result<()> {
+    use crate::components::version;
+    use chrono::Utc;
+
+    let lock_path = version::lock_path().ok_or_else(|| {
+        shared::logging::log_error("version", "lock path not found");
+        color_eyre::eyre::eyre!("lock path not found")
+    })?;
+
+    if let Some(parent) = lock_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    if version::is_lock_stale(&lock_path) {
+        cleanup_lock(&lock_path);
+    }
+
+    let _lock_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&lock_path)
+        .map_err(|err| {
+            shared::logging::log_error("version", &format!("lock acquire failed: {err}"));
+            err
+        })?;
+
+    let latest_version = fetch_latest_version().map_err(|err| {
+        shared::logging::log_error("version", &format!("api: {err}"));
+        cleanup_lock(&lock_path);
+        color_eyre::eyre::eyre!("api: {err}")
+    })?;
+
+    let cached = version::Cached {
+        fetched_at: Utc::now(),
+        latest_version,
+    };
+
+    let cache_path = version::cache_path().ok_or_else(|| {
+        shared::logging::log_error("version", "cache path not found");
+        cleanup_lock(&lock_path);
+        color_eyre::eyre::eyre!("cache path not found")
+    })?;
+
+    if let Some(parent) = cache_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let json = serde_json::to_string_pretty(&cached)?;
+    std::fs::write(&cache_path, json)?;
+
+    cleanup_lock(&lock_path);
+    Ok(())
+}
+
+fn fetch_latest_version() -> Result<String, String> {
+    let url = "https://registry.npmjs.org/@anthropic-ai/claude-code/latest";
+
+    let response = reqwest::blocking::Client::new()
+        .get(url)
+        .header(
+            "User-Agent",
+            concat!("claude-statusline/", env!("CARGO_PKG_VERSION")),
+        )
+        .send()
+        .map_err(|err| format!("request failed: {err}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("api error: {}", response.status()));
+    }
+
+    let json: serde_json::Value = response
+        .json()
+        .map_err(|err| format!("parse failed: {err}"))?;
+
+    json.get("version")
+        .and_then(|val| val.as_str())
+        .map(String::from)
+        .ok_or_else(|| "missing version field".to_string())
 }

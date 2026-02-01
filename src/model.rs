@@ -2,6 +2,7 @@ use crate::components::claude_model;
 use crate::components::context;
 use crate::components::plan;
 use crate::components::usage;
+use crate::components::version;
 use crate::effect::Effect;
 use crate::effect::Msg;
 
@@ -10,6 +11,7 @@ pub struct Model {
     pub context: Option<Result<f64, context::Error>>,
     pub plan: Option<Result<plan::Progress, plan::Error>>,
     pub usage: Option<Result<usage::Usage, usage::Error>>,
+    pub version: Option<version::Version>,
 }
 
 pub fn init() -> (Model, Vec<Effect>) {
@@ -18,6 +20,7 @@ pub fn init() -> (Model, Vec<Effect>) {
         context: None,
         plan: None,
         usage: None,
+        version: None,
     };
     (
         model,
@@ -27,105 +30,210 @@ pub fn init() -> (Model, Vec<Effect>) {
                 path: std::path::PathBuf::from("PLAN.md"),
             },
             Effect::ReadUsageCache,
+            Effect::ReadVersion,
+            Effect::ReadVersionCache,
         ],
     )
 }
 
 pub fn update(model: Model, msg: Msg) -> (Model, Vec<Effect>) {
     match msg {
-        Msg::PlanLoaded(result) => {
-            let mut effects = vec![];
+        Msg::CacheLoaded(result) => handle_cache_loaded(model, result),
+        Msg::PlanLoaded(result) => handle_plan_loaded(model, result),
+        Msg::StdinReceived(result) => handle_stdin_received(model, result),
+        Msg::VersionCacheLoaded(result) => handle_version_cache_loaded(model, result),
+        Msg::VersionLoaded(result) => handle_version_loaded(model, result),
+    }
+}
 
-            let plan_result = plan::parse(result);
-            if let Err(err) = &plan_result {
-                effects.push(Effect::LogError {
-                    module: "plan".to_owned(),
-                    error: err.to_string(),
-                });
+fn handle_plan_loaded(
+    model: Model,
+    result: Result<String, std::io::Error>,
+) -> (Model, Vec<Effect>) {
+    let mut effects = vec![];
+
+    let plan_result = plan::parse(result);
+    if let Err(err) = &plan_result {
+        effects.push(Effect::LogError {
+            module: "plan".to_owned(),
+            error: err.to_string(),
+        });
+    }
+
+    (
+        Model {
+            plan: Some(plan_result),
+            ..model
+        },
+        effects,
+    )
+}
+
+fn handle_stdin_received(
+    model: Model,
+    result: Result<String, std::io::Error>,
+) -> (Model, Vec<Effect>) {
+    let mut effects = vec![];
+
+    let input_for_log = match &result {
+        Ok(content) => content.clone(),
+        Err(err) => format!("<io error: {err}>"),
+    };
+
+    let claude_model_result = claude_model::parse(
+        result
+            .as_ref()
+            .map(std::clone::Clone::clone)
+            .map_err(|io_err| std::io::Error::new(io_err.kind(), io_err.to_string())),
+    );
+    if let Err(err) = &claude_model_result {
+        effects.push(Effect::LogError {
+            module: "claude_model".to_owned(),
+            error: format!("{err} | input: {input_for_log}"),
+        });
+    }
+
+    let context_result = context::parse(result);
+    if let Err(err) = &context_result {
+        effects.push(Effect::LogError {
+            module: "context".to_owned(),
+            error: format!("{err} | input: {input_for_log}"),
+        });
+    }
+
+    (
+        Model {
+            claude: Some(claude_model_result),
+            context: Some(context_result),
+            ..model
+        },
+        effects,
+    )
+}
+
+fn handle_cache_loaded(
+    model: Model,
+    result: Result<String, std::io::Error>,
+) -> (Model, Vec<Effect>) {
+    let mut effects = vec![];
+
+    let usage_result = match result {
+        Ok(content) => {
+            if usage::is_cache_stale(&content) {
+                effects.push(Effect::SpawnBackgroundRefresh);
             }
-
-            (
-                Model {
-                    plan: Some(plan_result),
-                    ..model
-                },
-                effects,
-            )
+            usage::parse_cache(&content)
         }
-        Msg::StdinReceived(result) => {
-            let mut effects = vec![];
-
-            let input_for_log = match &result {
-                Ok(content) => content.clone(),
-                Err(err) => format!("<io error: {err}>"),
-            };
-
-            let claude_model_result = claude_model::parse(
-                result
-                    .as_ref()
-                    .map(std::clone::Clone::clone)
-                    .map_err(|io_err| std::io::Error::new(io_err.kind(), io_err.to_string())),
-            );
-            if let Err(err) = &claude_model_result {
-                effects.push(Effect::LogError {
-                    module: "claude_model".to_owned(),
-                    error: format!("{err} | input: {input_for_log}"),
-                });
-            }
-
-            let context_result = context::parse(result);
-            if let Err(err) = &context_result {
-                effects.push(Effect::LogError {
-                    module: "context".to_owned(),
-                    error: format!("{err} | input: {input_for_log}"),
-                });
-            }
-
-            (
-                Model {
-                    claude: Some(claude_model_result),
-                    context: Some(context_result),
-                    ..model
-                },
-                effects,
-            )
-        }
-        Msg::CacheLoaded(result) => {
-            let mut effects = vec![];
-
-            let usage_result = match result {
-                Ok(content) => {
-                    if usage::is_cache_stale(&content) {
-                        effects.push(Effect::SpawnBackgroundRefresh);
-                    }
-                    usage::parse_cache(&content)
-                }
-                Err(err) => {
-                    effects.push(Effect::SpawnBackgroundRefresh);
-                    if err.kind() != std::io::ErrorKind::NotFound {
-                        effects.push(Effect::LogError {
-                            module: "usage".to_owned(),
-                            error: format!("cache read: {err}"),
-                        });
-                    }
-                    Err(usage::Error::CacheRead(err.to_string()))
-                }
-            };
-
-            if let Err(usage::Error::CacheParse(parse_err)) = &usage_result {
+        Err(err) => {
+            effects.push(Effect::SpawnBackgroundRefresh);
+            if err.kind() != std::io::ErrorKind::NotFound {
                 effects.push(Effect::LogError {
                     module: "usage".to_owned(),
-                    error: format!("cache parse: {parse_err}"),
+                    error: format!("cache read: {err}"),
                 });
             }
-
-            (
-                Model {
-                    usage: Some(usage_result),
-                    ..model
-                },
-                effects,
-            )
+            Err(usage::Error::CacheRead(err.to_string()))
         }
+    };
+
+    if let Err(usage::Error::CacheParse(parse_err)) = &usage_result {
+        effects.push(Effect::LogError {
+            module: "usage".to_owned(),
+            error: format!("cache parse: {parse_err}"),
+        });
     }
+
+    (
+        Model {
+            usage: Some(usage_result),
+            ..model
+        },
+        effects,
+    )
+}
+
+fn handle_version_loaded(
+    model: Model,
+    result: Result<String, std::io::Error>,
+) -> (Model, Vec<Effect>) {
+    let mut effects = vec![];
+
+    let current_result = version::parse_current(result);
+    if let Err(err) = &current_result {
+        effects.push(Effect::LogError {
+            module: "version".to_owned(),
+            error: err.to_string(),
+        });
+    }
+
+    let new_version = match model.version {
+        Some(existing) => version::Version {
+            current: Some(current_result),
+            latest: existing.latest,
+        },
+        None => version::Version {
+            current: Some(current_result),
+            latest: None,
+        },
+    };
+
+    (
+        Model {
+            version: Some(new_version),
+            ..model
+        },
+        effects,
+    )
+}
+
+fn handle_version_cache_loaded(
+    model: Model,
+    result: Result<String, std::io::Error>,
+) -> (Model, Vec<Effect>) {
+    let mut effects = vec![];
+
+    let latest_result = match result {
+        Ok(content) => {
+            if version::is_cache_stale(&content) {
+                effects.push(Effect::SpawnVersionRefresh);
+            }
+            Some(version::parse_cache(&content))
+        }
+        Err(err) => {
+            effects.push(Effect::SpawnVersionRefresh);
+            if err.kind() != std::io::ErrorKind::NotFound {
+                effects.push(Effect::LogError {
+                    module: "version".to_owned(),
+                    error: format!("cache read: {err}"),
+                });
+            }
+            None
+        }
+    };
+
+    if let Some(Err(version::LatestError::CacheParse(parse_err))) = &latest_result {
+        effects.push(Effect::LogError {
+            module: "version".to_owned(),
+            error: format!("cache parse: {parse_err}"),
+        });
+    }
+
+    let new_version = match model.version {
+        Some(existing) => version::Version {
+            current: existing.current,
+            latest: latest_result,
+        },
+        None => version::Version {
+            current: None,
+            latest: latest_result,
+        },
+    };
+
+    (
+        Model {
+            version: Some(new_version),
+            ..model
+        },
+        effects,
+    )
 }

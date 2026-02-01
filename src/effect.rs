@@ -1,6 +1,7 @@
 use std::io::Read as _;
 
 use crate::components::usage;
+use crate::components::version;
 use crate::shared;
 
 pub enum Effect {
@@ -8,13 +9,18 @@ pub enum Effect {
     ReadFile { path: std::path::PathBuf },
     ReadStdin,
     ReadUsageCache,
+    ReadVersion,
+    ReadVersionCache,
     SpawnBackgroundRefresh,
+    SpawnVersionRefresh,
 }
 
 pub enum Msg {
     CacheLoaded(Result<String, std::io::Error>),
     PlanLoaded(Result<String, std::io::Error>),
     StdinReceived(Result<String, std::io::Error>),
+    VersionCacheLoaded(Result<String, std::io::Error>),
+    VersionLoaded(Result<String, std::io::Error>),
 }
 
 pub fn execute(effect: &Effect) -> Option<Msg> {
@@ -46,6 +52,36 @@ pub fn execute(effect: &Effect) -> Option<Msg> {
         }
         Effect::SpawnBackgroundRefresh => {
             spawn_background_refresh();
+            None
+        }
+        Effect::ReadVersion => {
+            let result = std::process::Command::new("claude")
+                .arg("--version")
+                .output()
+                .map_err(|err| std::io::Error::other(err.to_string()))
+                .and_then(|output| {
+                    if output.status.success() {
+                        String::from_utf8(output.stdout).map_err(|err| {
+                            std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+                        })
+                    } else {
+                        Err(std::io::Error::other("command failed"))
+                    }
+                });
+            Some(Msg::VersionLoaded(result))
+        }
+        Effect::ReadVersionCache => {
+            let result = match version::cache_path() {
+                Some(path) => std::fs::read_to_string(path),
+                None => Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "cache directory not found",
+                )),
+            };
+            Some(Msg::VersionCacheLoaded(result))
+        }
+        Effect::SpawnVersionRefresh => {
+            spawn_version_refresh();
             None
         }
     }
@@ -91,6 +127,52 @@ fn spawn_background_refresh() {
                 shared::logging::log_error(
                     "usage",
                     &format!("failed to run background refresh: {err}"),
+                );
+            }
+        }
+    });
+}
+
+fn spawn_version_refresh() {
+    let exe = match std::env::current_exe() {
+        Ok(path) => path,
+        Err(err) => {
+            shared::logging::log_error("version", &format!("failed to get current exe: {err}"));
+            return;
+        }
+    };
+
+    let stderr_file = match shared::logging::open_log_file() {
+        Ok(file) => file,
+        Err(err) => {
+            shared::logging::log_error("version", &format!("failed to open log file: {err}"));
+            return;
+        }
+    };
+
+    std::thread::spawn(move || {
+        let result = std::process::Command::new(exe)
+            .arg("--refresh-version")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::from(stderr_file))
+            .output();
+
+        match result {
+            Ok(output) => {
+                if output.status.success() {
+                    shared::logging::log_error("version", "refresh completed successfully");
+                } else {
+                    shared::logging::log_error(
+                        "version",
+                        &format!("refresh failed with status: {}", output.status),
+                    );
+                }
+            }
+            Err(err) => {
+                shared::logging::log_error(
+                    "version",
+                    &format!("failed to run version refresh: {err}"),
                 );
             }
         }

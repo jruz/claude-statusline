@@ -17,9 +17,10 @@ One-shot process invoked by Claude Code:
 | context_window | stdin | Per-instance | No |
 | model | stdin | Per-instance | No |
 | plan | PLAN.md file | Per-instance | No |
-| usage | API | Shared (all instances) | Yes |
+| usage | API | Shared (all instances) | Yes (60s TTL) |
+| version | CLI + npm API | Shared (all instances) | Yes (1h TTL) |
 
-Multiple instances can run simultaneously. Each has independent stdin data, but all share the same usage cache at `~/.cache/claude-statusline/usage.json`.
+Multiple instances can run simultaneously. Each has independent stdin data, but all share the same caches at `~/.cache/claude-statusline/`.
 
 ## Model
 
@@ -31,6 +32,7 @@ Model {
     claude: Option<Result<String, claude::Error>>,
     plan: Option<Result<Progress, plan::Error>>,
     usage: Option<Result<Usage, usage::Error>>,
+    version: Version,
 }
 
 Progress {
@@ -46,6 +48,11 @@ Usage {
 Window {
     utilization: f64,
     resets_at: DateTime<Utc>,
+}
+
+Version {
+    current: Option<Result<String, version::CurrentError>>,
+    latest: Option<Result<String, version::LatestError>>,
 }
 ```
 
@@ -81,6 +88,8 @@ Msg {
     StdinReceived(Result<String, io::Error>),
     PlanLoaded(Result<String, io::Error>),
     CacheLoaded(Result<CachedUsage, cache::Error>),
+    VersionLoaded(Result<String, version::CurrentError>),
+    VersionCacheLoaded(Result<CachedVersion, cache::Error>),
 }
 ```
 
@@ -95,6 +104,10 @@ PlanLoaded(Ok(content))          → Parse checkboxes, set plan        → None
 PlanLoaded(Err(e))               → Set plan to Err                   → LogError
 CacheLoaded(Ok(cached))          → Set usage from cached.response    → if stale: SpawnBackgroundRefresh
 CacheLoaded(Err(e))              → Set usage to Err                  → SpawnBackgroundRefresh, LogError
+VersionLoaded(Ok(version))       → Set version.current               → None
+VersionLoaded(Err(e))            → Set version.current to Err        → LogError
+VersionCacheLoaded(Ok(cached))   → Set version.latest from cached    → if stale: SpawnVersionRefresh
+VersionCacheLoaded(Err(e))       → Set version.latest to None        → SpawnVersionRefresh, LogError
 ```
 
 ## Effects
@@ -104,8 +117,11 @@ Effect {
     LogError { module: String, error: String },
     ReadStdin,
     ReadPlan,
+    ReadVersion,
     LoadCache,
+    LoadVersionCache,
     SpawnBackgroundRefresh,
+    SpawnVersionRefresh,
 }
 ```
 
@@ -114,11 +130,11 @@ Effect {
 ## Main Flow
 
 ```
-1. Call init()             → (model, [ReadStdin, ReadPlan, LoadCache])
-2. Execute init effects    → [StdinReceived(..), PlanLoaded(..), CacheLoaded(..)]
+1. Call init()             → (model, [ReadStdin, ReadPlan, ReadVersion, LoadCache, LoadVersionCache])
+2. Execute init effects    → [StdinReceived(..), PlanLoaded(..), VersionLoaded(..), CacheLoaded(..), VersionCacheLoaded(..)]
 3. Update model from messages, collect effects
 4. Render model to stdout
-5. Execute update effects (SpawnBackgroundRefresh if needed, LogError if any)
+5. Execute update effects (SpawnBackgroundRefresh/SpawnVersionRefresh if needed, LogError if any)
 6. Exit
 ```
 
@@ -188,11 +204,11 @@ Two-line output with optional error line:
 Render(model) ──▶ stdout
 
 Line 1: Context: ████░░░░░░ 42%    Model: Opus 4.5    5h: ███░░ 60% (2h 15m)
-Line 2: Plan: ████░░░░░░ 40% (12 left)               7d: ██░░░ 40% (3d 12h)
+Line 2: Plan: ████░░░░░░ 40% (12 left)  v1.0.17      7d: ██░░░ 40% (3d 12h)
 Line 3: Errors(N): {last error}                      (only if errors > 0)
 ```
 
-Failed components show `err` in red.
+Failed components show `err` in red. Version fails silently (shows current version only).
 
 ## Grid
 
@@ -200,14 +216,14 @@ Two-line layout with fixed-width columns:
 
 ```
 Line 1: {context}              {model}              {5h usage}
-Line 2: {plan}                                      {7d usage}
+Line 2: {plan}                 {version}            {7d usage}
 Line 3: Errors(N): {last error}                     (only if errors > 0)
 ```
 
 Column widths using `unicode-width` for proper display width handling:
 
 - Column 1: 25 chars (Context, Plan)
-- Column 2: 20 chars (Model, empty)
+- Column 2: 20 chars (Model, Version)
 - Column 3: 30 chars (5h, 7d)
 
 ## Boundaries
@@ -218,12 +234,15 @@ Column widths using `unicode-width` for proper display width handling:
 |--------|--------|---------|
 | Claude Code | ReadStdin | StdinReceived |
 | PLAN.md file | ReadPlan | PlanLoaded |
-| Cache file | LoadCache | CacheLoaded |
+| Claude CLI | ReadVersion | VersionLoaded |
+| Cache file (usage) | LoadCache | CacheLoaded |
+| Cache file (version) | LoadVersionCache | VersionCacheLoaded |
 | Terminal | Render | — |
 | Log file | LogError | — |
-| Background | SpawnBackgroundRefresh | — |
+| Background (usage) | SpawnBackgroundRefresh | — |
+| Background (version) | SpawnVersionRefresh | — |
 
-### Background Process
+### Background Process (Usage)
 
 | System | Effect | Message |
 |--------|--------|---------|
@@ -231,6 +250,16 @@ Column widths using `unicode-width` for proper display width handling:
 | Lock file | ReleaseLock | — |
 | macOS Keychain | ReadKeychain | KeychainResult |
 | Anthropic API | FetchUsage | UsageFetched |
+| Cache file | SaveCache | CacheSaved |
+| Log file | LogError | — |
+
+### Background Process (Version)
+
+| System | Effect | Message |
+|--------|--------|---------|
+| Lock file | AcquireLock | LockAcquired |
+| Lock file | ReleaseLock | — |
+| npm registry | FetchLatestVersion | VersionFetched |
 | Cache file | SaveCache | CacheSaved |
 | Log file | LogError | — |
 
@@ -267,7 +296,8 @@ src/
     ├── context.rs       # Context window component
     ├── claude_model.rs  # Model name component
     ├── plan.rs          # PLAN.md progress component
-    └── usage.rs         # API rate limit component
+    ├── usage.rs         # API rate limit component
+    └── version.rs       # Version display component
 ```
 
 ### Components
@@ -283,10 +313,19 @@ Self-contained units. Each component has its own error enum, parse function, and
 
 ## Cache
 
+### Usage Cache
+
 - Location: `~/.cache/claude-statusline/usage.json`
 - TTL: 60 seconds
 - Stale cache used for render while background refreshes
 - Lock file prevents concurrent refresh: `~/.cache/claude-statusline/usage.lock`
+
+### Version Cache
+
+- Location: `~/.cache/claude-statusline/version.json`
+- TTL: 1 hour (3600 seconds)
+- Stale cache used for render while background refreshes
+- Lock file prevents concurrent refresh: `~/.cache/claude-statusline/version.lock`
 
 ## Error Handling
 
@@ -337,11 +376,12 @@ Errors are collected and logged. If any errors occurred, third line shows error 
 
 ```
 Context: ████░░░░░░ 42%    Model: Opus 4.5    5h: err
-Plan: err                                    7d: ██░░░ 40% (3d 12h)
+Plan: err                       v1.0.17      7d: ██░░░ 40% (3d 12h)
 Errors(2): API request failed
 ```
 
 - Failed component shows `err` in red
+- Version update check fails silently (shows current version only)
 - Third line shows error count and last error message (only if errors > 0)
 
 ### Logging

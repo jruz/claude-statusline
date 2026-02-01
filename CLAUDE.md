@@ -15,10 +15,15 @@ TEA (The Elm Architecture): Model → Update → View
 - `claude_model.rs`: Parse `model.display_name` from stdin JSON
 - `plan.rs`: Count `- [x]` / `- [ ]` checkboxes in PLAN.md
 - `usage.rs`: Read cached API usage from `~/.cache/claude-statusline/usage.json`
+- `version.rs`: Run `claude --version`, check npm registry for updates
 
 ## Usage API
 
 Background refresh fetches from `https://api.anthropic.com/api/oauth/usage` using OAuth token from macOS keychain (`Claude Code-credentials`).
+
+## Version API
+
+Current version from `claude --version`. Latest version fetched from `https://registry.npmjs.org/@anthropic-ai/claude-code/latest` (1h cache).
 
 ## Commands
 
