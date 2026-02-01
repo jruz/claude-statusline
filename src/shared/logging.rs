@@ -1,27 +1,37 @@
 use std::fs;
 use std::io::Write as _;
+use std::path::PathBuf;
 
-pub fn log_error(module: &str, error: &str) {
-    drop(write_log_entry(module, error));
-}
-
-fn write_log_entry(module: &str, error: &str) -> Result<(), std::io::Error> {
+fn log_dir() -> Result<PathBuf, std::io::Error> {
     let home_dir = dirs::home_dir().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::NotFound, "Home directory not found")
     })?;
+    Ok(home_dir.join(".cache").join("claude-statusline"))
+}
 
-    let log_dir = home_dir.join(".cache").join("claude-statusline");
-    fs::create_dir_all(&log_dir)?;
+fn log_path() -> Result<PathBuf, std::io::Error> {
+    Ok(log_dir()?.join("error.log"))
+}
 
-    let log_path = log_dir.join("error.log");
+pub fn open_log_file() -> Result<fs::File, std::io::Error> {
+    let dir = log_dir()?;
+    fs::create_dir_all(&dir)?;
+
+    fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path()?)
+}
+
+pub fn log_error(module: &str, error: &str) {
+    let _cannot_log_logging_failure = write_log_entry(module, error);
+}
+
+fn write_log_entry(module: &str, error: &str) -> Result<(), std::io::Error> {
     let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z");
     let entry = format!("{timestamp} [{module}] {error}\n");
 
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_path)?;
-
+    let mut file = open_log_file()?;
     file.write_all(entry.as_bytes())?;
 
     Ok(())

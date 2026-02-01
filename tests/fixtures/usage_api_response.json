@@ -1,0 +1,24 @@
+{
+  "five_hour": {
+    "utilization": 95.0,
+    "resets_at": "2026-02-01T16:59:59.936534+00:00"
+  },
+  "seven_day": {
+    "utilization": 13.0,
+    "resets_at": "2026-02-06T17:59:59.936554+00:00"
+  },
+  "seven_day_oauth_apps": null,
+  "seven_day_opus": null,
+  "seven_day_sonnet": {
+    "utilization": 0.0,
+    "resets_at": "2026-02-08T06:59:59.936562+00:00"
+  },
+  "seven_day_cowork": null,
+  "iguana_necktie": null,
+  "extra_usage": {
+    "is_enabled": false,
+    "monthly_limit": null,
+    "used_credits": null,
+    "utilization": null
+  }
+}

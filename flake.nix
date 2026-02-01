@@ -88,17 +88,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = platformPackages;
 
-          env = {
-            OPENSSL_DIR = "${pkgs.openssl.dev}";
-            OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
-            OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
-            PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
-          };
-
           shellHook = ''
-            export C_INCLUDE_PATH="${pkgs.openssl.dev}/include''${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}"
-            export LIBRARY_PATH="${pkgs.openssl.out}/lib''${LIBRARY_PATH:+:$LIBRARY_PATH}"
-            export LD_LIBRARY_PATH="${pkgs.openssl.out}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
             echo ""
             echo "  Rust Development Shell"
             echo "  ───────────────────────────"

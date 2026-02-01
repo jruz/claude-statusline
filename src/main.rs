@@ -15,6 +15,7 @@ fn main() -> color_eyre::Result<()> {
 
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).is_some_and(|arg| arg == "--refresh-usage") {
+        install_panic_hook();
         return run_background_refresh();
     }
 
@@ -35,6 +36,25 @@ fn cleanup_lock(lock_path: &std::path::Path) {
     if let Err(err) = std::fs::remove_file(lock_path) {
         shared::logging::log_error("usage", &format!("failed to remove lock file: {err}"));
     }
+}
+
+fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        let message = if let Some(msg) = panic_info.payload().downcast_ref::<&str>() {
+            (*msg).to_string()
+        } else if let Some(msg) = panic_info.payload().downcast_ref::<String>() {
+            msg.clone()
+        } else {
+            "unknown panic".to_string()
+        };
+
+        let location = match panic_info.location() {
+            Some(loc) => format!("{}:{}:{}", loc.file(), loc.line(), loc.column()),
+            None => "unknown location".to_string(),
+        };
+
+        shared::logging::log_error("panic", &format!("{message} at {location}"));
+    }));
 }
 
 fn fetch_usage(access_token: &str) -> Result<crate::components::usage::Response, String> {
@@ -89,51 +109,50 @@ fn run_background_refresh() -> color_eyre::Result<()> {
     use crate::components::usage;
     use chrono::Utc;
 
-    let Some(lock_path) = usage::lock_path() else {
-        shared::logging::log_error("usage", "cache directory not found");
-        return Ok(());
-    };
+    let lock_path = usage::lock_path().ok_or_else(|| {
+        shared::logging::log_error("usage", "lock path not found");
+        color_eyre::eyre::eyre!("lock path not found")
+    })?;
 
     if let Some(parent) = lock_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    let Ok(_lock_file) = std::fs::OpenOptions::new()
+    if usage::is_lock_stale(&lock_path) {
+        cleanup_lock(&lock_path);
+    }
+
+    let _lock_file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&lock_path)
-    else {
-        return Ok(());
-    };
+        .map_err(|err| {
+            shared::logging::log_error("usage", &format!("lock acquire failed: {err}"));
+            err
+        })?;
 
-    let access_token = match read_access_token() {
-        Ok(token) => token,
-        Err(err) => {
-            shared::logging::log_error("usage", &format!("credentials: {err}"));
-            cleanup_lock(&lock_path);
-            return Ok(());
-        }
-    };
+    let access_token = read_access_token().map_err(|err| {
+        shared::logging::log_error("usage", &format!("credentials: {err}"));
+        cleanup_lock(&lock_path);
+        color_eyre::eyre::eyre!("credentials: {err}")
+    })?;
 
-    let response = match fetch_usage(&access_token) {
-        Ok(resp) => resp,
-        Err(err) => {
-            shared::logging::log_error("usage", &format!("api: {err}"));
-            cleanup_lock(&lock_path);
-            return Ok(());
-        }
-    };
+    let response = fetch_usage(&access_token).map_err(|err| {
+        shared::logging::log_error("usage", &format!("api: {err}"));
+        cleanup_lock(&lock_path);
+        color_eyre::eyre::eyre!("api: {err}")
+    })?;
 
     let cached = usage::Cached {
         fetched_at: Utc::now(),
         response,
     };
 
-    let Some(cache_path) = usage::cache_path() else {
-        shared::logging::log_error("usage", "cache directory not found");
+    let cache_path = usage::cache_path().ok_or_else(|| {
+        shared::logging::log_error("usage", "cache path not found");
         cleanup_lock(&lock_path);
-        return Ok(());
-    };
+        color_eyre::eyre::eyre!("cache path not found")
+    })?;
 
     if let Some(parent) = cache_path.parent() {
         std::fs::create_dir_all(parent)?;

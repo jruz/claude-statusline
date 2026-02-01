@@ -60,17 +60,39 @@ fn spawn_background_refresh() {
         }
     };
 
-    let result = std::process::Command::new(exe)
-        .arg("--refresh-usage")
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn();
+    let stderr_file = match shared::logging::open_log_file() {
+        Ok(file) => file,
+        Err(err) => {
+            shared::logging::log_error("usage", &format!("failed to open log file: {err}"));
+            return;
+        }
+    };
 
-    if let Err(err) = result {
-        shared::logging::log_error(
-            "usage",
-            &format!("failed to spawn background refresh: {err}"),
-        );
-    }
+    std::thread::spawn(move || {
+        let result = std::process::Command::new(exe)
+            .arg("--refresh-usage")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::from(stderr_file))
+            .output();
+
+        match result {
+            Ok(output) => {
+                if output.status.success() {
+                    shared::logging::log_error("usage", "refresh completed successfully");
+                } else {
+                    shared::logging::log_error(
+                        "usage",
+                        &format!("refresh failed with status: {}", output.status),
+                    );
+                }
+            }
+            Err(err) => {
+                shared::logging::log_error(
+                    "usage",
+                    &format!("failed to run background refresh: {err}"),
+                );
+            }
+        }
+    });
 }

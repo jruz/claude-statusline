@@ -54,6 +54,19 @@ pub fn lock_path() -> Option<PathBuf> {
     })
 }
 
+pub fn is_lock_stale(lock_path: &std::path::Path) -> bool {
+    let Ok(metadata) = std::fs::metadata(lock_path) else {
+        return false;
+    };
+    let Ok(modified) = metadata.modified() else {
+        return false;
+    };
+    let Ok(age) = std::time::SystemTime::now().duration_since(modified) else {
+        return false;
+    };
+    age.as_secs() >= 300
+}
+
 pub fn parse_cache(content: &str) -> Result<Usage, Error> {
     let cached: Cached =
         serde_json::from_str(content).map_err(|err| Error::CacheParse(err.to_string()))?;
@@ -172,5 +185,39 @@ mod tests {
         let usage = result.expect("parse should succeed");
         usage.five_hour.expect("five_hour should be ok");
         usage.seven_day.expect("seven_day should be ok");
+    }
+
+    #[test]
+    fn parse_api_response_matches_fixture() {
+        let api_response = include_str!("../../tests/fixtures/usage_api_response.json");
+        let response: Response =
+            serde_json::from_str(api_response).expect("fixture should parse as Response");
+
+        assert_eq!(response.five_hour.utilization as i64, 95);
+        assert_eq!(response.seven_day.utilization as i64, 13);
+    }
+
+    #[test]
+    fn is_lock_stale_returns_true_for_old_lock() {
+        use std::fs::File;
+
+        let temp_dir = std::env::temp_dir().join("claude-statusline-test");
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let lock_path = temp_dir.join("test.lock");
+
+        drop(File::create(&lock_path).expect("create lock file"));
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time since epoch")
+            .as_secs();
+        let past_secs = i64::try_from(now_secs).expect("secs to i64") - 600;
+
+        filetime::set_file_mtime(&lock_path, filetime::FileTime::from_unix_time(past_secs, 0))
+            .expect("set mtime");
+
+        assert!(is_lock_stale(&lock_path));
+
+        std::fs::remove_file(&lock_path).expect("cleanup test lock file");
     }
 }
