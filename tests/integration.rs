@@ -69,23 +69,43 @@ mod tests {
     }
 
     #[test]
-    fn context_missing_field_shows_err() {
+    fn context_shows_zero_when_used_percentage_is_null() {
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":null}}"#)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Context:"))
+            .stdout(predicate::str::contains("0%"));
+    }
+
+    #[test]
+    fn context_shows_zero_when_used_percentage_is_null_with_tokens_present() {
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"context_window":{"total_input_tokens":50000,"total_output_tokens":50000,"context_window_size":200000,"used_percentage":null}}"#)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Context:"))
+            .stdout(predicate::str::contains("0%"));
+    }
+
+    #[test]
+    fn context_missing_field_shows_zero() {
         let mut cmd = statusline();
         cmd.write_stdin("{}")
             .assert()
             .success()
             .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("err"));
+            .stdout(predicate::str::contains("0%"));
     }
 
     #[test]
-    fn context_shows_err_with_model_only_json() {
+    fn context_shows_zero_with_model_only_json() {
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"model":{"display_name":"Any Model Name"}}"#)
             .assert()
             .success()
             .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("err"));
+            .stdout(predicate::str::contains("0%"));
     }
 
     #[test]

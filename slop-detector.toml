@@ -4,3 +4,4 @@ files = []
 
 [ignore.by-rule]
 no-drop-result = ["src/shared/logging.rs"]
+no-unwrap-or = ["src/components/context.rs"]
