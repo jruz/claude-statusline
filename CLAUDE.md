@@ -29,3 +29,17 @@ Current version from `claude --version`. Latest version fetched from `https://re
 
 - `just check`: Lint + test
 - `just demo`: Run with sample data
+
+## Codeberg Settings
+
+CLI: `codeberg-settings`. Config: `codeberg-settings.toml`. Manages repo description, topics, labels, merge config, releases.
+
+- `codeberg-settings plan`: Preview changes
+- `codeberg-settings apply`: Apply changes
+
+## Woodpecker Settings
+
+CLI: `woodpecker-settings`. Config: `woodpecker-settings.toml`. Manages CI secrets, permissions, timeouts.
+
+- `woodpecker-settings plan`: Preview changes
+- `woodpecker-settings apply`: Apply changes
