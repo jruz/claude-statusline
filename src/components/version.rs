@@ -146,7 +146,7 @@ pub fn render(version: Option<&Version>) -> String {
 
     match &ver.latest {
         Some(Ok(latest)) => match is_newer(latest, current) {
-            Some(true) => format!("Version: {current} {}", "\u{2191}".yellow()),
+            Some(true) => format!("Version: {current}{}", "\u{2191}".yellow()),
             Some(false) => format!("Version: {current}"),
             None => {
                 logging::log_error(

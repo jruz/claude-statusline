@@ -11,11 +11,11 @@ TEA (The Elm Architecture): Model → Update → View
 
 ## Components
 
-- `context.rs`: Parse `context_window.used_percentage` from stdin JSON
-- `claude_model.rs`: Parse `model.display_name` from stdin JSON
-- `plan.rs`: Count `- [x]` / `- [ ]` checkboxes in PLAN.md
-- `usage.rs`: Read cached API usage from `~/.cache/claude-statusline/usage.json`
-- `version.rs`: Run `claude --version`, check npm registry for updates
+- `components/context.rs`: Parse `context_window.used_percentage` from stdin JSON
+- `components/claude_model.rs`: Parse `model.display_name` from stdin JSON
+- `components/plan.rs`: Count `- [x]` / `- [ ]` checkboxes in PLAN.md
+- `components/usage.rs`: Read cached API usage from `~/.cache/claude-statusline/usage.json`
+- `components/version.rs`: Run `claude --version`, check npm registry for updates
 
 ## Usage API
 
