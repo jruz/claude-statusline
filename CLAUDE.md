@@ -29,6 +29,9 @@ Current version from `claude --version`. Latest version fetched from `https://re
 
 - `just check`: Lint + test
 - `just demo`: Run with sample data
+- `just build-linux`: Release build for Linux x86_64
+- `just build-macos`: Release build for macOS x86_64 + ARM64
+- `just release-upload <tag>`: Upload binaries to Codeberg release
 
 ## Codeberg Settings
 
@@ -43,3 +46,10 @@ CLI: `woodpecker-settings`. Config: `woodpecker-settings.toml`. Manages CI secre
 
 - `woodpecker-settings plan`: Preview changes
 - `woodpecker-settings apply`: Apply changes
+
+## Release Pipeline
+
+1. Bump version in `Cargo.toml`, push to main
+2. `.woodpecker/main.yml` runs `just check`, then AUTO_TAG extracts version and pushes `v<VERSION>` tag
+3. `.woodpecker/release.yml` triggers on tag: builds Linux, macOS, Windows binaries
+4. `scripts/release-upload.nu` uploads binaries to Codeberg release

@@ -104,5 +104,19 @@ fix:
 test:
     just rust-test
 
+build-linux:
+    cargo build --release
+    cp target/release/claude-statusline claude-statusline-linux-x86_64
+
+build-macos:
+    rustup target add x86_64-apple-darwin aarch64-apple-darwin
+    cargo build --release --target x86_64-apple-darwin
+    cargo build --release --target aarch64-apple-darwin
+    cp target/x86_64-apple-darwin/release/claude-statusline claude-statusline-macos-x86_64
+    cp target/aarch64-apple-darwin/release/claude-statusline claude-statusline-macos-arm64
+
+release-upload tag:
+    ./scripts/release-upload.nu {{ tag }}
+
 demo:
     echo '{"context_window":{"used_percentage":42},"model":{"display_name":"Opus 4.5"}}' | cargo run --quiet

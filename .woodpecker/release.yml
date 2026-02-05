@@ -1,0 +1,35 @@
+when:
+  - event: tag
+
+steps:
+  - name: BUILD_LINUX
+    image: 127.0.0.1:5000/woodpecker-job:v0.0.10
+    commands:
+      - . /entrypoint.sh
+      - nix develop --command just build-linux
+
+  - name: BUILD_MACOS
+    image: ghcr.io/rust-cross/cargo-zigbuild
+    commands:
+      - rustup target add x86_64-apple-darwin aarch64-apple-darwin
+      - cargo zigbuild --release --target x86_64-apple-darwin
+      - cargo zigbuild --release --target aarch64-apple-darwin
+      - cp target/x86_64-apple-darwin/release/claude-statusline claude-statusline-macos-x86_64
+      - cp target/aarch64-apple-darwin/release/claude-statusline claude-statusline-macos-arm64
+
+  - name: BUILD_WINDOWS
+    image: ghcr.io/rust-cross/cargo-xwin
+    commands:
+      - rustup target add x86_64-pc-windows-msvc
+      - cargo xwin build --release --target x86_64-pc-windows-msvc
+      - cp target/x86_64-pc-windows-msvc/release/claude-statusline.exe claude-statusline-windows-x86_64.exe
+
+  - name: RELEASE
+    image: 127.0.0.1:5000/woodpecker-job:v0.0.10
+    environment:
+      CODEBERG_TOKEN:
+        from_secret: codeberg_token
+    commands:
+      - ls -la claude-statusline-*
+      - . /entrypoint.sh
+      - nix develop --command just release-upload $${CI_COMMIT_TAG}
