@@ -3,6 +3,8 @@ use owo_colors::OwoColorize as _;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::shared::logging;
+
 const CACHE_TTL_SECONDS: i64 = 3600;
 
 #[derive(Debug, Clone)]
@@ -49,14 +51,29 @@ pub fn lock_path() -> Option<PathBuf> {
 }
 
 pub fn is_lock_stale(lock_path: &std::path::Path) -> bool {
-    let Ok(metadata) = std::fs::metadata(lock_path) else {
-        return false;
+    let metadata = match std::fs::metadata(lock_path) {
+        Ok(meta) => meta,
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                return false;
+            }
+            logging::log_error("version", &format!("lock metadata error: {err}"));
+            return true;
+        }
     };
-    let Ok(modified) = metadata.modified() else {
-        return false;
+    let modified = match metadata.modified() {
+        Ok(mtime) => mtime,
+        Err(err) => {
+            logging::log_error("version", &format!("lock mtime error: {err}"));
+            return true;
+        }
     };
-    let Ok(age) = std::time::SystemTime::now().duration_since(modified) else {
-        return false;
+    let age = match std::time::SystemTime::now().duration_since(modified) {
+        Ok(dur) => dur,
+        Err(err) => {
+            logging::log_error("version", &format!("lock age error: {err}"));
+            return true;
+        }
     };
     age.as_secs() >= 300
 }
@@ -78,8 +95,12 @@ pub fn parse_cache(content: &str) -> Result<String, LatestError> {
 }
 
 pub fn is_cache_stale(content: &str) -> bool {
-    let Ok(cached) = serde_json::from_str::<Cached>(content) else {
-        return true;
+    let cached = match serde_json::from_str::<Cached>(content) {
+        Ok(data) => data,
+        Err(err) => {
+            logging::log_error("version", &format!("cache parse error: {err}"));
+            return true;
+        }
     };
     let age = Utc::now().signed_duration_since(cached.fetched_at);
     age.num_seconds() >= CACHE_TTL_SECONDS
@@ -104,11 +125,10 @@ fn parse_version(version_str: &str) -> Option<(u32, u32, u32)> {
     Some((major, minor, patch))
 }
 
-fn is_newer(latest: &str, current: &str) -> bool {
-    match (parse_version(latest), parse_version(current)) {
-        (Some(latest_ver), Some(current_ver)) => latest_ver > current_ver,
-        _ => false,
-    }
+fn is_newer(latest: &str, current: &str) -> Option<bool> {
+    let latest_ver = parse_version(latest)?;
+    let current_ver = parse_version(current)?;
+    Some(latest_ver > current_ver)
 }
 
 pub fn render(version: Option<&Version>) -> String {
@@ -125,9 +145,17 @@ pub fn render(version: Option<&Version>) -> String {
     };
 
     match &ver.latest {
-        Some(Ok(latest)) if is_newer(latest, current) => {
-            format!("Version: {current} {}", "\u{2191}".yellow())
-        }
+        Some(Ok(latest)) => match is_newer(latest, current) {
+            Some(true) => format!("Version: {current} {}", "\u{2191}".yellow()),
+            Some(false) => format!("Version: {current}"),
+            None => {
+                logging::log_error(
+                    "version",
+                    &format!("failed to parse versions: latest={latest}, current={current}"),
+                );
+                format!("Version: {current}")
+            }
+        },
         _ => format!("Version: {current}"),
     }
 }
@@ -156,27 +184,37 @@ mod tests {
 
     #[test]
     fn is_newer_patch_bump() {
-        assert!(is_newer("1.0.18", "1.0.17"));
+        assert_eq!(is_newer("1.0.18", "1.0.17"), Some(true));
     }
 
     #[test]
     fn is_newer_minor_bump() {
-        assert!(is_newer("1.1.0", "1.0.17"));
+        assert_eq!(is_newer("1.1.0", "1.0.17"), Some(true));
     }
 
     #[test]
     fn is_newer_major_bump() {
-        assert!(is_newer("2.0.0", "1.0.17"));
+        assert_eq!(is_newer("2.0.0", "1.0.17"), Some(true));
     }
 
     #[test]
     fn is_newer_same_version() {
-        assert!(!is_newer("1.0.17", "1.0.17"));
+        assert_eq!(is_newer("1.0.17", "1.0.17"), Some(false));
     }
 
     #[test]
     fn is_newer_older_version() {
-        assert!(!is_newer("1.0.16", "1.0.17"));
+        assert_eq!(is_newer("1.0.16", "1.0.17"), Some(false));
+    }
+
+    #[test]
+    fn is_newer_invalid_latest() {
+        assert_eq!(is_newer("invalid", "1.0.17"), None);
+    }
+
+    #[test]
+    fn is_newer_invalid_current() {
+        assert_eq!(is_newer("1.0.18", "invalid"), None);
     }
 
     #[test]
