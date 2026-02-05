@@ -69,23 +69,23 @@ mod tests {
     }
 
     #[test]
-    fn context_missing_field_shows_zero() {
+    fn context_missing_field_shows_err() {
         let mut cmd = statusline();
         cmd.write_stdin("{}")
             .assert()
             .success()
             .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("0%"));
+            .stdout(predicate::str::contains("err"));
     }
 
     #[test]
-    fn context_shows_zero_with_model_only_json() {
+    fn context_shows_err_with_model_only_json() {
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"model":{"display_name":"Any Model Name"}}"#)
             .assert()
             .success()
             .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("0%"));
+            .stdout(predicate::str::contains("err"));
     }
 
     #[test]

@@ -8,6 +8,9 @@ const THRESHOLD_ORANGE: f64 = 40.0;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Missing context_window.used_percentage field")]
+    MissingField,
+
     #[error("Failed to parse JSON")]
     ParseJson(#[source] serde_json::Error),
 
@@ -29,18 +32,10 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<f64, Error> {
     let input = result.map_err(Error::ReadStdin)?;
     let parsed: StdinJson = serde_json::from_str(&input).map_err(Error::ParseJson)?;
 
-    let default: f64 = 0.0;
-    let percentage = match parsed.context_window {
-        Some(ContextWindowJson {
-            used_percentage: Some(pct),
-        }) => pct,
-        Some(ContextWindowJson {
-            used_percentage: None,
-        })
-        | None => default,
-    };
-
-    Ok(percentage)
+    parsed
+        .context_window
+        .and_then(|cw| cw.used_percentage)
+        .ok_or(Error::MissingField)
 }
 
 pub fn render(context: Option<&Result<f64, Error>>) -> String {
