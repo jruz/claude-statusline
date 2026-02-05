@@ -3,6 +3,7 @@ use owo_colors::OwoColorize as _;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::shared::logging;
 use crate::shared::progress_bar;
 
 #[derive(Debug, Clone)]
@@ -55,14 +56,29 @@ pub fn lock_path() -> Option<PathBuf> {
 }
 
 pub fn is_lock_stale(lock_path: &std::path::Path) -> bool {
-    let Ok(metadata) = std::fs::metadata(lock_path) else {
-        return false;
+    let metadata = match std::fs::metadata(lock_path) {
+        Ok(meta) => meta,
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                return false;
+            }
+            logging::log_error("usage", &format!("lock metadata error: {err}"));
+            return true;
+        }
     };
-    let Ok(modified) = metadata.modified() else {
-        return false;
+    let modified = match metadata.modified() {
+        Ok(mtime) => mtime,
+        Err(err) => {
+            logging::log_error("usage", &format!("lock mtime error: {err}"));
+            return true;
+        }
     };
-    let Ok(age) = std::time::SystemTime::now().duration_since(modified) else {
-        return false;
+    let age = match std::time::SystemTime::now().duration_since(modified) {
+        Ok(dur) => dur,
+        Err(err) => {
+            logging::log_error("usage", &format!("lock age error: {err}"));
+            return true;
+        }
     };
     age.as_secs() >= 300
 }
@@ -78,8 +94,12 @@ pub fn parse_cache(content: &str) -> Result<Usage, Error> {
 }
 
 pub fn is_cache_stale(content: &str) -> bool {
-    let Ok(cached) = serde_json::from_str::<Cached>(content) else {
-        return true;
+    let cached = match serde_json::from_str::<Cached>(content) {
+        Ok(data) => data,
+        Err(err) => {
+            logging::log_error("usage", &format!("cache parse error: {err}"));
+            return true;
+        }
     };
     let age = Utc::now().signed_duration_since(cached.fetched_at);
     age.num_seconds() >= 60
@@ -130,7 +150,10 @@ fn render_five_hour(usage: &Usage) -> String {
                 format_remaining(window.resets_at)
             )
         }
-        Err(_err) => format!("5h: {}", "err".red()),
+        Err(err) => {
+            logging::log_error("usage", &format!("5h render: {err}"));
+            format!("5h: {}", "err".red())
+        }
     }
 }
 
@@ -146,7 +169,10 @@ fn render_seven_day(usage: &Usage) -> String {
                 format_remaining(window.resets_at)
             )
         }
-        Err(_err) => format!("7d: {}", "err".red()),
+        Err(err) => {
+            logging::log_error("usage", &format!("7d render: {err}"));
+            format!("7d: {}", "err".red())
+        }
     }
 }
 
