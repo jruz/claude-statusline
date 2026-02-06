@@ -9,39 +9,39 @@ mod tests {
     }
 
     #[test]
-    fn context_renders_percentage_and_progress_bar() {
+    fn context_adjusts_for_autocompact_buffer() {
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":42.5}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":42}}"#)
             .assert()
             .success()
             .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("42%"));
+            .stdout(predicate::str::contains("50%"));
     }
 
     #[test]
-    fn context_color_green_at_39_percent() {
+    fn context_color_green_below_40_adjusted() {
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":39}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":30}}"#)
             .assert()
             .success()
             .stdout(predicate::str::contains("\x1b[32m"))
-            .stdout(predicate::str::contains("39%"));
+            .stdout(predicate::str::contains("36%"));
     }
 
     #[test]
-    fn context_color_yellow_at_40_percent() {
+    fn context_color_yellow_at_40_adjusted() {
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":40}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":34}}"#)
             .assert()
             .success()
             .stdout(predicate::str::contains("\x1b[33m"))
-            .stdout(predicate::str::contains("40%"));
+            .stdout(predicate::str::contains("41%"));
     }
 
     #[test]
-    fn context_color_yellow_at_59_percent() {
+    fn context_color_yellow_below_60_adjusted() {
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":59}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":49}}"#)
             .assert()
             .success()
             .stdout(predicate::str::contains("\x1b[33m"))
@@ -49,9 +49,9 @@ mod tests {
     }
 
     #[test]
-    fn context_color_red_at_60_percent() {
+    fn context_color_red_at_60_adjusted() {
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":60}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":50}}"#)
             .assert()
             .success()
             .stdout(predicate::str::contains("\x1b[31m"))
@@ -59,7 +59,7 @@ mod tests {
     }
 
     #[test]
-    fn context_color_red_at_100_percent() {
+    fn context_caps_at_100() {
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":100}}"#)
             .assert()

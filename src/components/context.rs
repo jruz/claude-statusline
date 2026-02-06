@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 use crate::shared::progress_bar;
 
+const AUTOCOMPACT_BUFFER: f64 = 0.165;
 const THRESHOLD_RED: f64 = 60.0;
 const THRESHOLD_ORANGE: f64 = 40.0;
 
@@ -29,10 +30,13 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<f64, Error> {
     let input = result.map_err(Error::ReadStdin)?;
     let parsed: StdinJson = serde_json::from_str(&input).map_err(Error::ParseJson)?;
 
-    let percentage = parsed
+    let raw = parsed
         .context_window
         .and_then(|cw| cw.used_percentage)
         .unwrap_or(0.0_f64);
+
+    let effective_capacity = AUTOCOMPACT_BUFFER.mul_add(-100.0_f64, 100.0_f64);
+    let percentage = (raw / effective_capacity * 100.0_f64).min(100.0_f64);
 
     Ok(percentage)
 }
