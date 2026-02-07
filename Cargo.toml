@@ -9,6 +9,7 @@ color-eyre = "0.6.5"
 console = "0.16.2"
 dirs = "6.0.0"
 native-tls = { version = "0.2.14", features = ["vendored"] }
+num-traits = "0.2.19"
 owo-colors = "4.2.3"
 reqwest = { version = "0.13.1", default-features = false, features = [
   "blocking",
@@ -65,15 +66,6 @@ std_instead_of_core = "allow"
 str_to_string = "allow"
 struct_excessive_bools = "allow"
 
-# this project
-as_conversions = "allow"
-cast_possible_truncation = "allow"
-cast_precision_loss = "allow"
-cast_sign_loss = "allow"
-float_arithmetic = "allow"
-integer_division_remainder_used = "allow"
-modulo_arithmetic = "allow"
-print_stdout = "allow"
 
 [profile.release]
 codegen-units = 1

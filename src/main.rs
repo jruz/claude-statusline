@@ -31,7 +31,10 @@ fn main() -> color_eyre::Result<()> {
         }
     }
 
-    println!("{}", view::render(&model));
+    std::io::Write::write_fmt(
+        &mut std::io::stdout(),
+        format_args!("{}\n", view::render(&model)),
+    )?;
     Ok(())
 }
 

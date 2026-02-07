@@ -13,8 +13,8 @@ pub enum Error {
 
 #[derive(Debug)]
 pub struct Progress {
-    pub completed: usize,
-    pub total: usize,
+    pub completed: u16,
+    pub total: u16,
 }
 
 pub fn parse(result: Result<String, std::io::Error>) -> Result<Progress, Error> {
@@ -26,8 +26,8 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<Progress, Error> 
         }
     })?;
 
-    let mut completed = 0;
-    let mut total = 0;
+    let mut completed = 0_u16;
+    let mut total = 0_u16;
 
     for line in content.lines() {
         let trimmed = line.trim_start();
@@ -51,10 +51,12 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<Progress, Error> 
 pub fn render(plan: Option<&Result<Progress, Error>>) -> String {
     let value = match plan {
         Some(Ok(progress)) => {
-            let pct: f64 = if progress.total == 0 {
-                100.0
+            let pct = if progress.total == 0 {
+                100.0_f64
             } else {
-                (progress.completed as f64 / progress.total as f64) * 100.0
+                let completed = u32::from(progress.completed);
+                let total = u32::from(progress.total);
+                f64::from((completed * 100).div_euclid(total).min(100))
             };
             let bar = progress_bar::render(pct, 10);
             format!("{}{} {:>3.0}%", bar.filled.green(), bar.empty, pct)

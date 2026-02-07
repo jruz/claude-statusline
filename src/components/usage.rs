@@ -120,10 +120,10 @@ fn format_remaining(resets_at: DateTime<Utc>) -> String {
     if total_hours < 1 {
         format!("{total_minutes}m")
     } else if total_hours < 24 {
-        let remaining_minutes = total_minutes % 60;
+        let remaining_minutes = total_minutes.rem_euclid(60);
         format!("{total_hours}h {remaining_minutes}m")
     } else {
-        let remaining_hours = total_hours % 24;
+        let remaining_hours = total_hours.rem_euclid(24);
         format!("{total_days}d {remaining_hours}h")
     }
 }
@@ -179,6 +179,7 @@ fn render_seven_day(usage: &Usage) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use num_traits::ToPrimitive as _;
 
     #[test]
     fn format_remaining_minutes() {
@@ -227,8 +228,8 @@ mod tests {
         let response: Response =
             serde_json::from_str(api_response).expect("fixture should parse as Response");
 
-        assert_eq!(response.five_hour.utilization as i64, 95);
-        assert_eq!(response.seven_day.utilization as i64, 13);
+        assert_eq!(response.five_hour.utilization.to_i64(), Some(95));
+        assert_eq!(response.seven_day.utilization.to_i64(), Some(13));
     }
 
     #[test]

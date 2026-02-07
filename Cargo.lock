@@ -159,6 +159,7 @@ dependencies = [
  "dirs",
  "filetime",
  "native-tls",
+ "num-traits",
  "owo-colors",
  "predicates",
  "reqwest",
