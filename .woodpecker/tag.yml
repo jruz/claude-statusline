@@ -1,3 +1,6 @@
+depends_on:
+  - check
+
 when:
   - event: push
     branch: main
@@ -5,12 +8,6 @@ when:
     branch: main
 
 steps:
-  - name: CHECK
-    image: 127.0.0.1:5000/woodpecker-job:v0.0.10
-    commands:
-      - . /entrypoint.sh
-      - nix develop --command just check
-
   - name: AUTO_TAG
     image: alpine/git:latest
     environment:
