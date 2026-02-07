@@ -10,96 +10,111 @@ rust-cargo-check:
 
 rust-check:
     just rust-cargo-check
-    just rust-lint
+    just rust-fmt-check
+    just rust-clippy
     just rust-test
+
+rust-fmt-check:
+    cargo fmt --all -- --check
 
 rust-clippy *ARGS='':
     cargo clippy --all-targets {{ARGS}}
 
 rust-clippy-fix *ARGS='':
-    cargo clippy --fix --all-targets --allow-dirty {{ARGS}}
+    cargo clippy \
+        --fix \
+        --all-targets \
+        --allow-dirty \
+        {{ARGS}}
 
 rust-fix:
     just rust-fmt-fix
     just rust-clippy-fix
 
-rust-fmt *FILES='':
-    cargo fmt --all -- --check {{FILES}}
-
 rust-fmt-fix:
     cargo fmt --all
-
-rust-lint:
-    just rust-fmt
-    just rust-clippy
 
 rust-outdated:
     cargo outdated
 
 rust-test *FILTER='':
-    cargo nextest run --no-tests=pass {{FILTER}}
+    cargo nextest run \
+        --no-tests=pass \
+        {{FILTER}}
 
 rust-upgrade:
     cargo upgrade --incompatible
     cargo update
 
-ci-lint:
-    woodpecker-cli lint --strict .woodpecker/
+woodpecker-check:
+    woodpecker-cli lint \
+        --strict \
+        .woodpecker/
 
-md-lint:
+md-check:
     markdownlint-cli2 '**/*.md'
 
-md-lint-fix:
+md-fix:
     markdownlint-cli2 --fix '**/*.md'
 
-nix-lint:
+nix-check:
+    fd \
+        --extension nix \
+        --exec nixfmt --check
     statix check .
     deadnix --fail .
 
-nix-lint-fix:
+nix-fix:
+    fd \
+        --extension nix \
+        --exec nixfmt
     statix fix .
     deadnix --edit .
 
-nix-fmt:
-    fd --extension nix --exec nixfmt --check
+toml-check:
+    fd \
+        --extension toml \
+        --exec taplo format --check
 
-nix-fmt-fix:
-    fd --extension nix --exec nixfmt
+toml-fix:
+    fd \
+        --extension toml \
+        --exec taplo format
 
-toml-fmt:
-    taplo format --check
+nu-check:
+    #!/usr/bin/env nu
+    fd --absolute-path --extension nu --exec nu --commands 'nu-check --debug {}'
+    nu-lint --config nu-lint.toml
 
-toml-fmt-fix:
-    taplo format
+nu-fix:
+    nu-lint \
+        --config nu-lint.toml \
+        --fix
 
-yaml-lint:
-    fd --extension yaml --extension yml --hidden --exec yamllint --config-file .yamllint.yaml
-
-lint:
-    just ci-lint
-    just md-lint
-    just nix-lint
-    just rust-lint
-    just toml-fmt
-    just yaml-lint
-
-fmt:
-    just nix-fmt
-    just rust-fmt
-    just toml-fmt
+yaml-check:
+    fd \
+        --extension yaml \
+        --extension yml \
+        --hidden \
+        --exec yamllint \
+        --strict \
+        --config-file .yamllint.yaml
 
 check:
-    just fix
-    just lint
-    just fmt
-    just rust-test
+    just woodpecker-check
+    just md-check
+    just nix-check
+    just nu-check
+    just rust-check
+    just toml-check
+    just yaml-check
 
 fix:
     just rust-fix
-    just nix-lint-fix
-    just nix-fmt-fix
-    just md-lint-fix
-    just toml-fmt-fix
+    just nix-fix
+    just nu-fix
+    just md-fix
+    just toml-fix
 
 test:
     just rust-test
@@ -116,7 +131,7 @@ build-macos:
     cp target/aarch64-apple-darwin/release/claude-statusline claude-statusline-macos-arm64
 
 release-upload tag:
-    ./scripts/release-upload.nu {{ tag }}
+    nu scripts/release-upload.nu {{ tag }}
 
 demo:
     echo '{"context_window":{"used_percentage":42},"model":{"display_name":"Opus 4.5"}}' | cargo run --quiet
