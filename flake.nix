@@ -1,4 +1,10 @@
 {
+  nixConfig = {
+    extra-substituters = [ "https://oxalica.cachix.org" ];
+    extra-trusted-public-keys =
+      [ "oxalica.cachix.org-1:xIQx5E4KAt0BXOY0TFfCMx+JsMhMVID0bW70GBCElQ0=" ];
+  };
+
   description = "DevShell";
 
   inputs = {
