@@ -9,7 +9,6 @@
     "MD041": false
   },
   "ignores": [
-    ".devenv/**",
     ".direnv/**",
     "node_modules/**",
     "target/**"

@@ -6,7 +6,7 @@ steps:
     image: 127.0.0.1:5000/woodpecker-job:v0.0.13
     commands:
       - . /entrypoint.sh
-      - devenv shell cargo build --release
+      - nix develop --command cargo build --release
       - cp target/release/claude-statusline claude-statusline-linux-x86_64
 
   - name: BUILD_MACOS
@@ -33,4 +33,4 @@ steps:
     commands:
       - ls -la claude-statusline-*
       - . /entrypoint.sh
-      - devenv shell just release-upload $${CI_COMMIT_TAG}
+      - nix develop --command just release-upload $${CI_COMMIT_TAG}
