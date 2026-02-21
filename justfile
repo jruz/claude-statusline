@@ -133,5 +133,16 @@ build-macos:
 release-upload tag:
     nu scripts/release-upload.nu {{ tag }}
 
+worktree-add NAME:
+    #!/usr/bin/env nu
+    git worktree add -b {{ NAME }} $"../{{ NAME }}"
+    cd $"../{{ NAME }}"
+    direnv allow
+
+worktree-remove NAME:
+    #!/usr/bin/env nu
+    git worktree remove $"../{{ NAME }}"
+    git branch -d {{ NAME }}
+
 demo:
     echo '{"context_window":{"used_percentage":42},"model":{"display_name":"Opus 4.5"}}' | cargo run --quiet

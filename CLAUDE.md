@@ -32,6 +32,8 @@ Current version from `claude --version`. Latest version fetched from `https://re
 - `just build-linux`: Release build for Linux x86_64
 - `just build-macos`: Release build for macOS x86_64 + ARM64
 - `just release-upload <tag>`: Upload binaries to Codeberg release
+- `just worktree-add <name>`: Create a new worktree with branch `<name>` at `../<name>`
+- `just worktree-remove <name>`: Remove worktree and delete branch `<name>`
 
 ## Codeberg Settings
 
