@@ -4,11 +4,25 @@ mod model;
 mod shared;
 mod view;
 
+use components::version::Channel;
 use effect::execute;
 use model::init;
 use model::update;
 
 const DEFAULT_API_URL: &str = "https://api.anthropic.com";
+
+fn parse_channel(args: &[String]) -> Result<Channel, color_eyre::Report> {
+    let channel_str = args
+        .iter()
+        .position(|arg| arg == "--channel")
+        .and_then(|idx| args.get(idx + 1));
+
+    match channel_str {
+        Some(val) => components::version::channel_from_str(val)
+            .map_err(|err| color_eyre::eyre::eyre!("{err}")),
+        None => Ok(Channel::Stable),
+    }
+}
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -19,10 +33,12 @@ fn main() -> color_eyre::Result<()> {
         return run_background_refresh();
     }
     if args.get(1).is_some_and(|arg| arg == "--refresh-version") {
-        return run_version_refresh();
+        let channel = parse_channel(&args)?;
+        return run_version_refresh(&channel);
     }
 
-    let (mut model, mut effects) = init();
+    let channel = parse_channel(&args)?;
+    let (mut model, mut effects) = init(channel);
     while let Some(effect) = effects.pop() {
         if let Some(msg) = execute(&effect) {
             let (new_model, new_effects) = update(model, msg);
@@ -171,7 +187,7 @@ fn run_background_refresh() -> color_eyre::Result<()> {
     Ok(())
 }
 
-fn run_version_refresh() -> color_eyre::Result<()> {
+fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
     use crate::components::version;
     use chrono::Utc;
 
@@ -197,7 +213,7 @@ fn run_version_refresh() -> color_eyre::Result<()> {
             err
         })?;
 
-    let latest_version = fetch_latest_version().map_err(|err| {
+    let latest_version = fetch_latest_version(channel).map_err(|err| {
         shared::logging::log_error("version", &format!("api: {err}"));
         cleanup_lock(&lock_path);
         color_eyre::eyre::eyre!("api: {err}")
@@ -225,11 +241,14 @@ fn run_version_refresh() -> color_eyre::Result<()> {
     Ok(())
 }
 
-fn fetch_latest_version() -> Result<String, String> {
-    let url = "https://registry.npmjs.org/@anthropic-ai/claude-code/latest";
+fn fetch_latest_version(channel: &Channel) -> Result<String, String> {
+    let url = format!(
+        "https://registry.npmjs.org/@anthropic-ai/claude-code/{}",
+        components::version::channel_as_str(channel)
+    );
 
     let response = reqwest::blocking::Client::new()
-        .get(url)
+        .get(&url)
         .header(
             "User-Agent",
             concat!("claude-statusline/", env!("CARGO_PKG_VERSION")),

@@ -7,6 +7,7 @@ use crate::effect::Effect;
 use crate::effect::Msg;
 
 pub struct Model {
+    pub channel: version::Channel,
     pub claude: Option<Result<String, claude_model::Error>>,
     pub context: Option<Result<f64, context::Error>>,
     pub plan: Option<Result<plan::Progress, plan::Error>>,
@@ -14,8 +15,9 @@ pub struct Model {
     pub version: Option<version::Version>,
 }
 
-pub fn init() -> (Model, Vec<Effect>) {
+pub fn init(channel: version::Channel) -> (Model, Vec<Effect>) {
     let model = Model {
+        channel,
         claude: None,
         context: None,
         plan: None,
@@ -195,12 +197,16 @@ fn handle_version_cache_loaded(
     let latest_result = match result {
         Ok(content) => {
             if version::is_cache_stale(&content) {
-                effects.push(Effect::SpawnVersionRefresh);
+                effects.push(Effect::SpawnVersionRefresh {
+                    channel: model.channel.clone(),
+                });
             }
             Some(version::parse_cache(&content))
         }
         Err(err) => {
-            effects.push(Effect::SpawnVersionRefresh);
+            effects.push(Effect::SpawnVersionRefresh {
+                channel: model.channel.clone(),
+            });
             if err.kind() != std::io::ErrorKind::NotFound {
                 effects.push(Effect::LogError {
                     module: "version".to_owned(),

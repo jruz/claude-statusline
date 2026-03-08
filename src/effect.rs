@@ -12,7 +12,7 @@ pub enum Effect {
     ReadVersion,
     ReadVersionCache,
     SpawnBackgroundRefresh,
-    SpawnVersionRefresh,
+    SpawnVersionRefresh { channel: version::Channel },
 }
 
 pub enum Msg {
@@ -80,8 +80,8 @@ pub fn execute(effect: &Effect) -> Option<Msg> {
             };
             Some(Msg::VersionCacheLoaded(result))
         }
-        Effect::SpawnVersionRefresh => {
-            spawn_version_refresh();
+        Effect::SpawnVersionRefresh { channel } => {
+            spawn_version_refresh(channel);
             None
         }
     }
@@ -133,7 +133,7 @@ fn spawn_background_refresh() {
     });
 }
 
-fn spawn_version_refresh() {
+fn spawn_version_refresh(channel: &version::Channel) {
     let exe = match std::env::current_exe() {
         Ok(path) => path,
         Err(err) => {
@@ -150,9 +150,10 @@ fn spawn_version_refresh() {
         }
     };
 
+    let channel_str = version::channel_as_str(channel).to_string();
     std::thread::spawn(move || {
         let result = std::process::Command::new(exe)
-            .arg("--refresh-version")
+            .args(["--refresh-version", "--channel", &channel_str])
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::from(stderr_file))

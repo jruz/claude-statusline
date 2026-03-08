@@ -8,9 +8,16 @@ use crate::shared::logging;
 const CACHE_TTL_SECONDS: i64 = 3600;
 
 #[derive(Debug, Clone)]
-pub struct Version {
-    pub current: Option<Result<String, CurrentError>>,
-    pub latest: Option<Result<String, LatestError>>,
+pub enum Channel {
+    Latest,
+    Next,
+    Stable,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ChannelError {
+    #[error("unknown channel: {0}")]
+    Unknown(String),
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -28,10 +35,33 @@ pub enum LatestError {
     CacheParse(String),
 }
 
+#[derive(Debug, Clone)]
+pub struct Version {
+    pub current: Option<Result<String, CurrentError>>,
+    pub latest: Option<Result<String, LatestError>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cached {
     pub fetched_at: DateTime<Utc>,
     pub latest_version: String,
+}
+
+pub fn channel_as_str(channel: &Channel) -> &str {
+    match channel {
+        Channel::Latest => "latest",
+        Channel::Next => "next",
+        Channel::Stable => "stable",
+    }
+}
+
+pub fn channel_from_str(input: &str) -> Result<Channel, ChannelError> {
+    match input {
+        "latest" => Ok(Channel::Latest),
+        "next" => Ok(Channel::Next),
+        "stable" => Ok(Channel::Stable),
+        other => Err(ChannelError::Unknown(other.to_string())),
+    }
 }
 
 pub fn cache_path() -> Option<PathBuf> {
