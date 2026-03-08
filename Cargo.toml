@@ -66,6 +66,8 @@ std_instead_of_core = "allow"
 str_to_string = "allow"
 struct_excessive_bools = "allow"
 
+# this project
+print_stderr = "allow"
 
 [profile.release]
 codegen-units = 1

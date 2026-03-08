@@ -3,5 +3,7 @@ rules = []
 files = []
 
 [ignore.by-rule]
+no-discard-result = ["src/shared/logging.rs"]
 no-drop-result = ["src/shared/logging.rs"]
+no-print-outside-main = ["src/shared/logging.rs"]
 no-unwrap-or = ["src/components/context.rs"]

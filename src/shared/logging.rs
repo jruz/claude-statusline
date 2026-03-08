@@ -24,7 +24,9 @@ pub fn open_log_file() -> Result<fs::File, std::io::Error> {
 }
 
 pub fn log_error(module: &str, error: &str) {
-    let _cannot_log_logging_failure = write_log_entry(module, error);
+    if let Err(err) = write_log_entry(module, error) {
+        eprintln!("[{module}] logging failed: {err}");
+    }
 }
 
 fn write_log_entry(module: &str, error: &str) -> Result<(), std::io::Error> {
