@@ -33,7 +33,7 @@ Parse the version number before the space.
 Fetched from npm registry:
 
 ```
-GET https://registry.npmjs.org/@anthropic-ai/claude-code/latest
+GET https://registry.npmjs.org/@anthropic-ai/claude-code/stable
 ```
 
 Response:

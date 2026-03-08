@@ -23,7 +23,7 @@ Background refresh fetches from `https://api.anthropic.com/api/oauth/usage` usin
 
 ## Version API
 
-Current version from `claude --version`. Latest version fetched from `https://registry.npmjs.org/@anthropic-ai/claude-code/latest` (1h cache).
+Current version from `claude --version`. Latest version fetched from `https://registry.npmjs.org/@anthropic-ai/claude-code/stable` (1h cache).
 
 ## Commands
 
