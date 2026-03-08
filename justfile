@@ -83,8 +83,9 @@ toml-fix:
 
 nu-check:
     #!/usr/bin/env nu
-    fd --absolute-path --extension nu --exec nu --commands 'nu-check --debug {}'
-    nu-lint --config nu-lint.toml
+    (^fd --absolute-path --extension nu
+        --exec nu --commands 'nu-check --debug {}')
+    ^nu-lint --config nu-lint.toml
 
 nu-fix:
     nu-lint \
@@ -127,22 +128,29 @@ build-macos:
     rustup target add x86_64-apple-darwin aarch64-apple-darwin
     cargo build --release --target x86_64-apple-darwin
     cargo build --release --target aarch64-apple-darwin
-    cp target/x86_64-apple-darwin/release/claude-statusline claude-statusline-macos-x86_64
-    cp target/aarch64-apple-darwin/release/claude-statusline claude-statusline-macos-arm64
+    cp target/x86_64-apple-darwin/release/claude-statusline \
+        claude-statusline-macos-x86_64
+    cp target/aarch64-apple-darwin/release/claude-statusline \
+        claude-statusline-macos-arm64
 
-release-upload tag:
-    nu scripts/release-upload.nu {{ tag }}
+release-upload TAG:
+    nu scripts/release-upload.nu {{ TAG }}
 
 worktree-add NAME:
     #!/usr/bin/env nu
-    git worktree add -b {{ NAME }} $"../{{ NAME }}"
+    ^git worktree add -b {{ NAME }} $"../{{ NAME }}"
     cd $"../{{ NAME }}"
-    direnv allow
+    ^direnv allow
 
 worktree-remove NAME:
     #!/usr/bin/env nu
-    git worktree remove $"../{{ NAME }}"
-    git branch -d {{ NAME }}
+    ^git worktree remove $"../{{ NAME }}"
+    ^git branch -d {{ NAME }}
 
 demo:
-    echo '{"context_window":{"used_percentage":42},"model":{"display_name":"Opus 4.5"}}' | cargo run --quiet
+    #!/usr/bin/env nu
+    let json = ({
+        context_window: { used_percentage: 42 }
+        model: { display_name: "Opus 4.5" }
+    } | to json --raw)
+    $json | ^cargo run --quiet
