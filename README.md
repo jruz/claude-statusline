@@ -6,6 +6,23 @@ A terminal status line for Claude Code sessions.
 
 ## Install
 
+### Nix Flake
+
+```nix
+{
+  inputs.claude-statusline.url = "git+https://codeberg.org/jruz/claude-statusline.git?ref=refs/tags/v0.2.0";
+
+  outputs = { claude-statusline, ... }: {
+    # Add to your packages
+    environment.systemPackages = [
+      claude-statusline.packages.${system}.default
+    ];
+  };
+}
+```
+
+### Cargo
+
 ```bash
 cargo install --path .
 ```
@@ -47,11 +64,7 @@ Claude Code pipes session JSON to stdin when invoking the statusline command.
 
 ### Credentials
 
-OAuth token is read from macOS Keychain using the `security` command:
-
-```bash
-security find-generic-password -s "Claude Code-credentials" -w
-```
+OAuth token is read from `~/.claude/.credentials.json` (Linux), with macOS Keychain as fallback.
 
 ### Cache
 

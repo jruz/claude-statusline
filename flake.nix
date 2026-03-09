@@ -43,7 +43,23 @@
           commonPackages ++ darwinPackages
         else
           commonPackages ++ linuxPackages;
+        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+        claude-statusline = pkgs.rustPlatform.buildRustPackage {
+          pname = cargoToml.package.name;
+          inherit (cargoToml.package) version;
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+          nativeBuildInputs = with pkgs; [ pkg-config perl ];
+          buildInputs = with pkgs;
+            [ openssl ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+              libiconv
+              darwin.apple_sdk.frameworks.Security
+              darwin.apple_sdk.frameworks.SystemConfiguration
+            ];
+        };
       in {
+        packages.default = claude-statusline;
+
         devShells.default = pkgs.mkShell {
           buildInputs = platformPackages;
 
