@@ -99,6 +99,28 @@ fn fetch_usage(access_token: &str) -> Result<crate::components::usage::Response,
 }
 
 fn read_access_token() -> Result<String, String> {
+    read_access_token_from_file().or_else(|_| read_access_token_from_keychain())
+}
+
+fn extract_access_token(json: &serde_json::Value) -> Result<String, String> {
+    json.get("claudeAiOauth")
+        .and_then(|oauth| oauth.get("accessToken"))
+        .and_then(|token| token.as_str())
+        .map(String::from)
+        .ok_or_else(|| "missing accessToken".to_string())
+}
+
+fn read_access_token_from_file() -> Result<String, String> {
+    let home = std::env::var("HOME").map_err(|err| format!("HOME not set: {err}"))?;
+    let path = std::path::PathBuf::from(home).join(".claude/.credentials.json");
+    let content = std::fs::read_to_string(&path)
+        .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
+    let json: serde_json::Value =
+        serde_json::from_str(&content).map_err(|err| format!("invalid json: {err}"))?;
+    extract_access_token(&json)
+}
+
+fn read_access_token_from_keychain() -> Result<String, String> {
     let output = std::process::Command::new("security")
         .args([
             "find-generic-password",
@@ -116,15 +138,9 @@ fn read_access_token() -> Result<String, String> {
 
     let json_str =
         String::from_utf8(output.stdout).map_err(|err| format!("invalid utf8: {err}"))?;
-
     let json: serde_json::Value =
         serde_json::from_str(&json_str).map_err(|err| format!("invalid json: {err}"))?;
-
-    json.get("claudeAiOauth")
-        .and_then(|oauth| oauth.get("accessToken"))
-        .and_then(|token| token.as_str())
-        .map(String::from)
-        .ok_or_else(|| "missing accessToken".to_string())
+    extract_access_token(&json)
 }
 
 fn run_background_refresh() -> color_eyre::Result<()> {
