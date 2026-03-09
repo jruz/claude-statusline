@@ -18,10 +18,13 @@
         rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         nu-lint = import ./nu-lint.nix { inherit pkgs; };
         commonPackages = with pkgs; [
+          babashka
           cargo-edit
           cargo-nextest
           cargo-outdated
           cargo-watch
+          clj-kondo
+          zprint
           deadnix
           fd
           just
@@ -70,6 +73,7 @@
             echo "  Rust:        ${rustVersion}"
             echo "  Nextest:     ${pkgs.cargo-nextest.version}"
             echo "  Taplo:       ${pkgs.taplo.version}"
+            echo "  Babashka:    ${pkgs.babashka.version}"
             echo "  Woodpecker:  ${pkgs.woodpecker-cli.version}"
             echo ""
           '' + pkgs.lib.optionalString pkgs.stdenv.isLinux ''

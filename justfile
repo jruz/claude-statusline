@@ -92,6 +92,21 @@ nu-fix:
         --config nu-lint.toml \
         --fix
 
+clj-check:
+    fd \
+        --extension clj \
+        --exec zprint -c
+    fd \
+        --extension clj \
+        --exec clj-kondo \
+        --fail-level warning \
+        --lint
+
+clj-fix:
+    fd \
+        --extension clj \
+        --exec zprint -w
+
 yaml-check:
     fd \
         --extension yaml \
@@ -102,6 +117,7 @@ yaml-check:
         --config-file .yamllint.yaml
 
 check:
+    just clj-check
     just woodpecker-check
     just md-check
     just nix-check
@@ -111,6 +127,7 @@ check:
     just yaml-check
 
 fix:
+    just clj-fix
     just rust-fix
     just nix-fix
     just nu-fix
