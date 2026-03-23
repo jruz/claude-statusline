@@ -2,6 +2,7 @@ mod components;
 mod effect;
 mod model;
 mod shared;
+mod version;
 mod view;
 
 use components::version::Channel;
@@ -33,29 +34,31 @@ fn main() -> color_eyre::Result<()> {
         })?;
 
     let args: Vec<String> = std::env::args().collect();
-    if args.get(1).is_some_and(|arg| arg == "--refresh-usage") {
-        install_panic_hook();
-        return run_background_refresh();
-    }
-    if args.get(1).is_some_and(|arg| arg == "--refresh-version") {
-        let channel = parse_channel(&args)?;
-        return run_version_refresh(&channel);
-    }
-
-    let channel = parse_channel(&args)?;
-    let (mut model, mut effects) = init(channel);
-    while let Some(effect) = effects.pop() {
-        if let Some(msg) = execute(&effect) {
-            let (new_model, new_effects) = update(model, msg);
-            model = new_model;
-            effects.extend(new_effects);
+    let output = match args.get(1).map(String::as_str) {
+        Some("--version") => version::clap_version().to_string(),
+        Some("--refresh-usage") => {
+            install_panic_hook();
+            return run_background_refresh();
         }
-    }
+        Some("--refresh-version") => {
+            let channel = parse_channel(&args)?;
+            return run_version_refresh(&channel);
+        }
+        _ => {
+            let channel = parse_channel(&args)?;
+            let (mut model, mut effects) = init(channel);
+            while let Some(effect) = effects.pop() {
+                if let Some(msg) = execute(&effect) {
+                    let (new_model, new_effects) = update(model, msg);
+                    model = new_model;
+                    effects.extend(new_effects);
+                }
+            }
+            view::render(&model)
+        }
+    };
 
-    std::io::Write::write_fmt(
-        &mut std::io::stdout(),
-        format_args!("{}\n", view::render(&model)),
-    )?;
+    std::io::Write::write_fmt(&mut std::io::stdout(), format_args!("{output}\n"))?;
     Ok(())
 }
 
