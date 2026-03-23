@@ -160,7 +160,7 @@ fn run_background_refresh() -> color_eyre::Result<()> {
         cleanup_lock(&lock_path);
     }
 
-    let _lock_file = std::fs::OpenOptions::new()
+    let lock_file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&lock_path)
@@ -168,6 +168,7 @@ fn run_background_refresh() -> color_eyre::Result<()> {
             shared::logging::log_error("usage", &format!("lock acquire failed: {err}"));
             err
         })?;
+    drop(lock_file);
 
     let access_token = read_access_token().map_err(|err| {
         shared::logging::log_error("usage", &format!("credentials: {err}"));
@@ -220,7 +221,7 @@ fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
         cleanup_lock(&lock_path);
     }
 
-    let _lock_file = std::fs::OpenOptions::new()
+    let lock_file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&lock_path)
@@ -228,6 +229,7 @@ fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
             shared::logging::log_error("version", &format!("lock acquire failed: {err}"));
             err
         })?;
+    drop(lock_file);
 
     let latest_version = fetch_latest_version(channel).map_err(|err| {
         shared::logging::log_error("version", &format!("api: {err}"));
