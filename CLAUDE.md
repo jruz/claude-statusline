@@ -44,7 +44,7 @@ CLI: `codeberg-settings`. Config: `codeberg-settings.toml`. Manages repo descrip
 
 ## Woodpecker Settings
 
-CLI: `woodpecker-settings`. Config: `woodpecker-settings.toml`. Manages CI secrets, permissions, timeouts.
+CLI: `woodpecker-settings`. Config: `woodpecker-settings.yaml`. Manages CI secrets, permissions, timeouts.
 
 - `woodpecker-settings plan`: Preview changes
 - `woodpecker-settings apply`: Apply changes
@@ -52,6 +52,6 @@ CLI: `woodpecker-settings`. Config: `woodpecker-settings.toml`. Manages CI secre
 ## Release Pipeline
 
 1. Bump version in `Cargo.toml`, push to main
-2. `.woodpecker/main.yml` runs `just check`, then AUTO_TAG extracts version and pushes `v<VERSION>` tag
-3. `.woodpecker/release.yml` triggers on tag: builds Linux, macOS, Windows binaries
-4. `scripts/release-upload.nu` uploads binaries to Codeberg release
+2. `.woodpecker/check.yml` runs `just check`, then `.woodpecker/tag.yml` AUTO_TAG extracts version and pushes `v<VERSION>` tag
+3. `.woodpecker/release.yml` triggers on tag: builds Linux and macOS binaries
+4. `scripts/release-upload.ts` uploads binaries to Codeberg release

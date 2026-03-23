@@ -137,21 +137,19 @@ fix:
 test:
     just rust-test
 
-build-linux:
-    cargo build --release
-    cp target/release/claude-statusline claude-statusline-linux-x86_64
-
-build-macos:
-    rustup target add x86_64-apple-darwin aarch64-apple-darwin
-    cargo build --release --target x86_64-apple-darwin
-    cargo build --release --target aarch64-apple-darwin
-    cp target/x86_64-apple-darwin/release/claude-statusline \
-        claude-statusline-macos-x86_64
-    cp target/aarch64-apple-darwin/release/claude-statusline \
-        claude-statusline-macos-arm64
+release-build OS ARCH:
+    docker run --rm \
+        --volume {{ justfile_directory() }}:/work \
+        --workdir /work \
+        --env REVISION={{ env("REVISION") }} \
+        ghcr.io/rust-cross/cargo-zigbuild:0.21.4 \
+        scripts/release-build.sh {{ OS }} {{ ARCH }}
 
 release-upload TAG:
-    nu scripts/release-upload.nu {{ TAG }}
+    bun scripts/release-upload.ts {{ TAG }}
+
+release-delete TAG:
+    bun scripts/release-delete.ts {{ TAG }}
 
 worktree-add NAME:
     #!/usr/bin/env nu

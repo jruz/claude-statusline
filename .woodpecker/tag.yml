@@ -12,7 +12,7 @@ steps:
     image: alpine/git:v2.52.0
     environment:
       CODEBERG_TOKEN:
-        from_secret: codeberg_token
+        from_secret: CODEBERG_TOKEN
     commands:
       - git remote set-url origin "https://token:$${CODEBERG_TOKEN}@codeberg.org/$${CI_REPO}.git"
       - VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')

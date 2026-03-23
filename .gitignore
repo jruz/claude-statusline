@@ -1,5 +1,6 @@
 /PLAN.md
 /target
 .direnv
+.intentionally-empty-file.o
 .lsp
 result

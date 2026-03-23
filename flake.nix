@@ -1,84 +1,83 @@
 {
-  description = "DevShell";
+  description = "Claude Code statusline";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.11";
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, rust-overlay, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs { inherit system overlays; };
-        rustToolchain =
-          builtins.fromTOML (builtins.readFile ./rust-toolchain.toml);
-        rustVersion = rustToolchain.toolchain.channel;
-        rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        nu-lint = import ./nu-lint.nix { inherit pkgs; };
-        commonPackages = with pkgs; [
-          babashka
-          cargo-edit
-          cargo-nextest
-          cargo-outdated
-          cargo-watch
-          clj-kondo
-          zprint
-          deadnix
-          fd
-          just
-          markdownlint-cli2
-          nixfmt-classic
-          nu-lint
-          nushell
-          pkg-config
-          ripgrep
-          rust
-          statix
-          taplo
-          woodpecker-cli
-          yamllint
-        ];
-        darwinPackages = with pkgs; [ libiconv ];
-        linuxPackages = with pkgs; [ glibc glibcLocales ];
-        platformPackages = if pkgs.stdenv.isDarwin then
-          commonPackages ++ darwinPackages
-        else
-          commonPackages ++ linuxPackages;
-        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-        claude-statusline = pkgs.rustPlatform.buildRustPackage {
+  outputs = { self, nixpkgs, rust-overlay, ... }:
+    let
+      systems =
+        [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      forAllSystems = f:
+        nixpkgs.lib.genAttrs systems (system:
+          f {
+            pkgs = import nixpkgs {
+              inherit system;
+              overlays = [ rust-overlay.overlays.default ];
+            };
+          });
+      cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+      revision = self.rev or "dirty";
+    in {
+      packages = forAllSystems ({ pkgs }: {
+        default = pkgs.rustPlatform.buildRustPackage {
           pname = cargoToml.package.name;
           inherit (cargoToml.package) version;
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
-          nativeBuildInputs = with pkgs; [ pkg-config perl ];
-          buildInputs = with pkgs;
-            [ openssl ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-              libiconv
-              darwin.apple_sdk.frameworks.Security
-              darwin.apple_sdk.frameworks.SystemConfiguration
-            ];
-        };
-      in {
-        packages.default = claude-statusline;
-
-        devShells.default = pkgs.mkShell {
-          buildInputs = platformPackages;
-
-          shellHook = ''
-            echo ""
-            echo "  Rust Development Shell"
-            echo "  ───────────────────────────"
-            echo "  Rust:        ${rustVersion}"
-            echo "  Nextest:     ${pkgs.cargo-nextest.version}"
-            echo "  Taplo:       ${pkgs.taplo.version}"
-            echo "  Babashka:    ${pkgs.babashka.version}"
-            echo "  Woodpecker:  ${pkgs.woodpecker-cli.version}"
-            echo ""
-          '' + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-            export LOCALE_ARCHIVE="${pkgs.glibcLocales}/lib/locale/locale-archive"
-          '';
+          REVISION = revision;
+          CARGO_HOME = "$TMPDIR";
+          doCheck = false;
+          buildInputs =
+            pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
         };
       });
+
+      devShells = forAllSystems ({ pkgs }:
+        let nu-lint = import ./nu-lint.nix { inherit pkgs; };
+        in {
+          default = pkgs.mkShell {
+            packages = with pkgs;
+              [
+                (rust-bin.fromRustupToolchainFile ./rust-toolchain.toml)
+                babashka
+                bun
+                cargo-edit
+                cargo-nextest
+                cargo-outdated
+                cargo-watch
+                clj-kondo
+                deadnix
+                fd
+                just
+                markdownlint-cli2
+                nixfmt-classic
+                nu-lint
+                nushell
+                ripgrep
+                statix
+                taplo
+                woodpecker-cli
+                yamllint
+                zprint
+              ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ libiconv ]
+              ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ glibc glibcLocales ];
+
+            shellHook = ''
+              echo ""
+              echo "  ${cargoToml.package.name} Development Shell"
+              echo "  ───────────────────────────"
+              echo "  rustc $(rustc --version | cut -d' ' -f2)"
+              echo ""
+            '' + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+              export LOCALE_ARCHIVE="${pkgs.glibcLocales}/lib/locale/locale-archive"
+            '';
+          };
+        });
+    };
 }
