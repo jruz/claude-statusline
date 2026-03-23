@@ -26,6 +26,11 @@ fn parse_channel(args: &[String]) -> Result<Channel, color_eyre::Report> {
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .map_err(|provider| {
+            color_eyre::eyre::eyre!("failed to install rustls crypto provider: {provider:?}")
+        })?;
 
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).is_some_and(|arg| arg == "--refresh-usage") {
