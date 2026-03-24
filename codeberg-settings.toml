@@ -72,3 +72,9 @@ wiki_branch = "main"
 allow_only_contributors_to_track_time = true
 enable_issue_dependencies = true
 enable_time_tracker = true
+
+[branch_protection.main]
+apply_to_admins = true
+enable_push = true
+enable_status_check = true
+status_check_contexts = ["ci/woodpecker/push/check", "ci/woodpecker/pr/check"]
