@@ -58,7 +58,8 @@ fn main() -> color_eyre::Result<()> {
         }
     };
 
-    std::io::Write::write_fmt(&mut std::io::stdout(), format_args!("{output}\n"))?;
+    let mut stdout = std::io::stdout();
+    std::io::Write::write_fmt(&mut stdout, format_args!("{output}\n"))?;
     Ok(())
 }
 
@@ -69,7 +70,7 @@ fn cleanup_lock(lock_path: &std::path::Path) {
 }
 
 fn install_panic_hook() {
-    std::panic::set_hook(Box::new(|panic_info| {
+    let hook = Box::new(|panic_info: &std::panic::PanicHookInfo<'_>| {
         let message = if let Some(msg) = panic_info.payload().downcast_ref::<&str>() {
             (*msg).to_string()
         } else if let Some(msg) = panic_info.payload().downcast_ref::<String>() {
@@ -84,7 +85,8 @@ fn install_panic_hook() {
         };
 
         shared::logging::log_error("panic", &format!("{message} at {location}"));
-    }));
+    });
+    std::panic::set_hook(hook);
 }
 
 fn fetch_usage(access_token: &str) -> Result<crate::components::usage::Response, String> {
@@ -119,8 +121,8 @@ fn extract_access_token(json: &serde_json::Value) -> Result<String, String> {
 }
 
 fn read_access_token_from_file() -> Result<String, String> {
-    let home = std::env::var("HOME").map_err(|err| format!("HOME not set: {err}"))?;
-    let path = std::path::PathBuf::from(home).join(".claude/.credentials.json");
+    let home = dirs::home_dir().ok_or_else(|| "HOME not set".to_string())?;
+    let path = home.join(".claude/.credentials.json");
     let content = std::fs::read_to_string(&path)
         .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
     let json: serde_json::Value =

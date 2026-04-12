@@ -10,131 +10,156 @@ mod tests {
 
     #[test]
     fn context_adjusts_for_autocompact_buffer() {
+        let has_context = predicate::str::contains("Context:");
+        let has_50_pct = predicate::str::contains("50%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":42}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("50%"));
+            .stdout(has_context)
+            .stdout(has_50_pct);
     }
 
     #[test]
     fn context_color_green_below_40_adjusted() {
+        let has_green = predicate::str::contains("\x1b[32m");
+        let has_36_pct = predicate::str::contains("36%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":30}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("\x1b[32m"))
-            .stdout(predicate::str::contains("36%"));
+            .stdout(has_green)
+            .stdout(has_36_pct);
     }
 
     #[test]
     fn context_color_yellow_at_40_adjusted() {
+        let has_yellow = predicate::str::contains("\x1b[33m");
+        let has_41_pct = predicate::str::contains("41%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":34}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("\x1b[33m"))
-            .stdout(predicate::str::contains("41%"));
+            .stdout(has_yellow)
+            .stdout(has_41_pct);
     }
 
     #[test]
     fn context_color_yellow_below_60_adjusted() {
+        let has_yellow = predicate::str::contains("\x1b[33m");
+        let has_59_pct = predicate::str::contains("59%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":49}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("\x1b[33m"))
-            .stdout(predicate::str::contains("59%"));
+            .stdout(has_yellow)
+            .stdout(has_59_pct);
     }
 
     #[test]
     fn context_color_red_at_60_adjusted() {
+        let has_red = predicate::str::contains("\x1b[31m");
+        let has_60_pct = predicate::str::contains("60%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":50}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("\x1b[31m"))
-            .stdout(predicate::str::contains("60%"));
+            .stdout(has_red)
+            .stdout(has_60_pct);
     }
 
     #[test]
     fn context_caps_at_100() {
+        let has_red = predicate::str::contains("\x1b[31m");
+        let has_100_pct = predicate::str::contains("100%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":100}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("\x1b[31m"))
-            .stdout(predicate::str::contains("100%"));
+            .stdout(has_red)
+            .stdout(has_100_pct);
     }
 
     #[test]
     fn context_shows_zero_when_used_percentage_is_null() {
+        let has_context = predicate::str::contains("Context:");
+        let has_0_pct = predicate::str::contains("0%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":null}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("0%"));
+            .stdout(has_context)
+            .stdout(has_0_pct);
     }
 
     #[test]
     fn context_shows_zero_when_used_percentage_is_null_with_tokens_present() {
+        let has_context = predicate::str::contains("Context:");
+        let has_0_pct = predicate::str::contains("0%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"total_input_tokens":50000,"total_output_tokens":50000,"context_window_size":200000,"used_percentage":null}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("0%"));
+            .stdout(has_context)
+            .stdout(has_0_pct);
     }
 
     #[test]
     fn context_missing_field_shows_zero() {
+        let has_context = predicate::str::contains("Context:");
+        let has_0_pct = predicate::str::contains("0%");
         let mut cmd = statusline();
         cmd.write_stdin("{}")
             .assert()
             .success()
-            .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("0%"));
+            .stdout(has_context)
+            .stdout(has_0_pct);
     }
 
     #[test]
     fn context_shows_zero_with_model_only_json() {
+        let has_context = predicate::str::contains("Context:");
+        let has_0_pct = predicate::str::contains("0%");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"model":{"display_name":"Any Model Name"}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("0%"));
+            .stdout(has_context)
+            .stdout(has_0_pct);
     }
 
     #[test]
     fn context_invalid_json_shows_err() {
+        let has_context = predicate::str::contains("Context:");
+        let has_err = predicate::str::contains("err");
         let mut cmd = statusline();
         cmd.write_stdin("not valid json")
             .assert()
             .success()
-            .stdout(predicate::str::contains("Context:"))
-            .stdout(predicate::str::contains("err"));
+            .stdout(has_context)
+            .stdout(has_err);
     }
 
     #[test]
     fn claude_model_renders_display_name() {
+        let has_model = predicate::str::contains("Model: Opus 4.5");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"model":{"display_name":"Opus 4.5"}}"#)
             .assert()
             .success()
-            .stdout(predicate::str::contains("Model: Opus 4.5"));
+            .stdout(has_model);
     }
 
     #[test]
     fn claude_model_missing_field_shows_err() {
+        let has_model = predicate::str::contains("Model:");
+        let has_err = predicate::str::contains("err");
         let mut cmd = statusline();
         cmd.write_stdin("{}")
             .assert()
             .success()
-            .stdout(predicate::str::contains("Model:"))
-            .stdout(predicate::str::contains("err"));
+            .stdout(has_model)
+            .stdout(has_err);
     }
 
     #[test]
@@ -144,13 +169,16 @@ mod tests {
         std::fs::write(&plan_path, "- [x] Done\n- [ ] Todo\n- [ ] Todo 2\n")
             .expect("failed to write PLAN.md");
 
+        let dir = temp_dir.path();
+        let has_plan = predicate::str::contains("PLAN.md:");
+        let has_33_pct = predicate::str::contains("33%");
         let mut cmd = statusline();
-        cmd.current_dir(temp_dir.path())
+        cmd.current_dir(dir)
             .write_stdin("{}")
             .assert()
             .success()
-            .stdout(predicate::str::contains("PLAN.md:"))
-            .stdout(predicate::str::contains("33%"));
+            .stdout(has_plan)
+            .stdout(has_33_pct);
     }
 
     #[test]
@@ -160,36 +188,44 @@ mod tests {
         std::fs::write(&plan_path, "# Just a heading\nNo todos here\n")
             .expect("failed to write PLAN.md");
 
+        let dir = temp_dir.path();
+        let has_plan = predicate::str::contains("PLAN.md:");
+        let has_100_pct = predicate::str::contains("100%");
         let mut cmd = statusline();
-        cmd.current_dir(temp_dir.path())
+        cmd.current_dir(dir)
             .write_stdin("{}")
             .assert()
             .success()
-            .stdout(predicate::str::contains("PLAN.md:"))
-            .stdout(predicate::str::contains("100%"));
+            .stdout(has_plan)
+            .stdout(has_100_pct);
     }
 
     #[test]
     fn plan_shows_file_not_found_when_missing() {
         let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
 
+        let dir = temp_dir.path();
+        let has_plan = predicate::str::contains("PLAN.md:");
+        let has_not_found = predicate::str::contains("file-not-found");
         let mut cmd = statusline();
-        cmd.current_dir(temp_dir.path())
+        cmd.current_dir(dir)
             .write_stdin("{}")
             .assert()
             .success()
-            .stdout(predicate::str::contains("PLAN.md:"))
-            .stdout(predicate::str::contains("file-not-found"));
+            .stdout(has_plan)
+            .stdout(has_not_found);
     }
 
     #[test]
     fn usage_shows_err_when_no_cache() {
+        let has_five_hour = predicate::str::contains("5h:");
+        let has_seven_day = predicate::str::contains("7d:");
         let mut cmd = statusline();
         cmd.write_stdin("{}")
             .assert()
             .success()
-            .stdout(predicate::str::contains("5h:"))
-            .stdout(predicate::str::contains("7d:"));
+            .stdout(has_five_hour)
+            .stdout(has_seven_day);
     }
 
     #[test]
@@ -201,9 +237,10 @@ mod tests {
         let json =
             r#"{"context_window":{"used_percentage":42},"model":{"display_name":"Opus 4.5"}}"#;
 
+        let dir = temp_dir.path();
         let mut cmd = statusline();
         let output = cmd
-            .current_dir(temp_dir.path())
+            .current_dir(dir)
             .write_stdin(json)
             .assert()
             .success()

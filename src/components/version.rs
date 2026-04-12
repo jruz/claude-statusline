@@ -60,7 +60,11 @@ pub fn channel_from_str(input: &str) -> Result<Channel, ChannelError> {
         "latest" => Ok(Channel::Latest),
         "next" => Ok(Channel::Next),
         "stable" => Ok(Channel::Stable),
-        other => Err(ChannelError::Unknown(other.to_string())),
+        other => {
+            let name = other.to_string();
+            let err = ChannelError::Unknown(name);
+            Err(err)
+        }
     }
 }
 
@@ -109,7 +113,10 @@ pub fn is_lock_stale(lock_path: &std::path::Path) -> bool {
 }
 
 pub fn parse_current(result: Result<String, std::io::Error>) -> Result<String, CurrentError> {
-    let output = result.map_err(|err| CurrentError::CommandFailed(err.to_string()))?;
+    let output = result.map_err(|err| {
+        let msg = err.to_string();
+        CurrentError::CommandFailed(msg)
+    })?;
 
     output
         .split_whitespace()
@@ -119,8 +126,10 @@ pub fn parse_current(result: Result<String, std::io::Error>) -> Result<String, C
 }
 
 pub fn parse_cache(content: &str) -> Result<String, LatestError> {
-    let cached: Cached =
-        serde_json::from_str(content).map_err(|err| LatestError::CacheParse(err.to_string()))?;
+    let cached: Cached = serde_json::from_str(content).map_err(|err| {
+        let msg = err.to_string();
+        LatestError::CacheParse(msg)
+    })?;
     Ok(cached.latest_version)
 }
 
@@ -196,19 +205,25 @@ mod tests {
 
     #[test]
     fn parse_current_extracts_version() {
-        let result = parse_current(Ok("1.0.17 (Claude Code)".to_string()));
+        let input = "1.0.17 (Claude Code)".to_string();
+        let ok_input = Ok(input);
+        let result = parse_current(ok_input);
         assert_eq!(result.expect("should parse"), "1.0.17");
     }
 
     #[test]
     fn parse_current_handles_simple_version() {
-        let result = parse_current(Ok("1.0.17".to_string()));
+        let input = "1.0.17".to_string();
+        let ok_input = Ok(input);
+        let result = parse_current(ok_input);
         assert_eq!(result.expect("should parse"), "1.0.17");
     }
 
     #[test]
     fn parse_current_error_on_empty() {
-        let result = parse_current(Ok(String::new()));
+        let input = String::new();
+        let ok_input = Ok(input);
+        let result = parse_current(ok_input);
         assert!(matches!(result, Err(CurrentError::ParseFailed)));
     }
 
@@ -254,49 +269,69 @@ mod tests {
 
     #[test]
     fn render_current_loading() {
+        let latest_val = "1.0.18".to_string();
+        let latest_ok = Ok(latest_val);
+        let latest = Some(latest_ok);
         let ver = Version {
             current: None,
-            latest: Some(Ok("1.0.18".to_string())),
+            latest,
         };
-        assert_eq!(render(Some(&ver)), "Version: ...");
+        let ver_ref = Some(&ver);
+        assert_eq!(render(ver_ref), "Version: ...");
     }
 
     #[test]
     fn render_current_only() {
+        let current_val = "1.0.17".to_string();
+        let current_ok = Ok(current_val);
+        let current = Some(current_ok);
         let ver = Version {
-            current: Some(Ok("1.0.17".to_string())),
+            current,
             latest: None,
         };
-        assert_eq!(render(Some(&ver)), "Version: 1.0.17");
+        let ver_ref = Some(&ver);
+        assert_eq!(render(ver_ref), "Version: 1.0.17");
     }
 
     #[test]
     fn render_update_available() {
-        let ver = Version {
-            current: Some(Ok("1.0.17".to_string())),
-            latest: Some(Ok("1.0.18".to_string())),
-        };
-        let result = render(Some(&ver));
+        let current_val = "1.0.17".to_string();
+        let current_ok = Ok(current_val);
+        let current = Some(current_ok);
+        let latest_val = "1.0.18".to_string();
+        let latest_ok = Ok(latest_val);
+        let latest = Some(latest_ok);
+        let ver = Version { current, latest };
+        let ver_ref = Some(&ver);
+        let result = render(ver_ref);
         assert!(result.contains("Version: 1.0.17"));
         assert!(result.contains("\u{2191}"));
     }
 
     #[test]
     fn render_no_update() {
-        let ver = Version {
-            current: Some(Ok("1.0.17".to_string())),
-            latest: Some(Ok("1.0.17".to_string())),
-        };
-        assert_eq!(render(Some(&ver)), "Version: 1.0.17");
+        let current_val = "1.0.17".to_string();
+        let current_ok = Ok(current_val);
+        let current = Some(current_ok);
+        let latest_val = "1.0.17".to_string();
+        let latest_ok = Ok(latest_val);
+        let latest = Some(latest_ok);
+        let ver = Version { current, latest };
+        let ver_ref = Some(&ver);
+        assert_eq!(render(ver_ref), "Version: 1.0.17");
     }
 
     #[test]
     fn render_error() {
+        let err = CurrentError::ParseFailed;
+        let current_err = Err(err);
+        let current = Some(current_err);
         let ver = Version {
-            current: Some(Err(CurrentError::ParseFailed)),
+            current,
             latest: None,
         };
-        let result = render(Some(&ver));
+        let ver_ref = Some(&ver);
+        let result = render(ver_ref);
         assert!(result.contains("Version:"));
         assert!(result.contains("err"));
     }

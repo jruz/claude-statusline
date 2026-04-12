@@ -12,10 +12,14 @@ const LOADING_5H: &str = "5h: ...";
 const LOADING_7D: &str = "7d: ...";
 
 pub fn render(model: &Model) -> String {
-    let context_text = context::render(model.context.as_ref());
-    let model_text = claude_model::render(model.claude.as_ref());
-    let plan_text = plan::render(model.plan.as_ref());
-    let version_text = version::render(model.version.as_ref());
+    let context_ref = model.context.as_ref();
+    let context_text = context::render(context_ref);
+    let claude_ref = model.claude.as_ref();
+    let model_text = claude_model::render(claude_ref);
+    let plan_ref = model.plan.as_ref();
+    let plan_text = plan::render(plan_ref);
+    let version_ref = model.version.as_ref();
+    let version_text = version::render(version_ref);
     let (five_hour, seven_day) = parse_usage_lines(model);
 
     let line1 = format!(
@@ -36,7 +40,8 @@ pub fn render(model: &Model) -> String {
 }
 
 fn parse_usage_lines(model: &Model) -> (String, String) {
-    let usage_lines = usage::render(model.usage.as_ref());
+    let usage_ref = model.usage.as_ref();
+    let usage_lines = usage::render(usage_ref);
     let mut usage_iter = usage_lines.lines();
     match (usage_iter.next(), usage_iter.next()) {
         (Some(five), Some(seven)) => (five.to_string(), seven.to_string()),

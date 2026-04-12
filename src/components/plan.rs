@@ -56,7 +56,8 @@ pub fn render(plan: Option<&Result<Progress, Error>>) -> String {
             } else {
                 let completed = u32::from(progress.completed);
                 let total = u32::from(progress.total);
-                f64::from((completed * 100).div_euclid(total).min(100))
+                let raw = (completed * 100).div_euclid(total).min(100);
+                f64::from(raw)
             };
             let bar = progress_bar::render(pct, 10);
             format!("{}{} {:>3.0}%", bar.filled.green(), bar.empty, pct)

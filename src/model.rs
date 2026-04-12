@@ -82,12 +82,15 @@ fn handle_stdin_received(
         Err(err) => format!("<io error: {err}>"),
     };
 
-    let claude_model_result = claude_model::parse(
-        result
-            .as_ref()
-            .map(std::clone::Clone::clone)
-            .map_err(|io_err| std::io::Error::new(io_err.kind(), io_err.to_string())),
-    );
+    let stdin_clone = result
+        .as_ref()
+        .map(std::clone::Clone::clone)
+        .map_err(|io_err| {
+            let kind = io_err.kind();
+            let msg = io_err.to_string();
+            std::io::Error::new(kind, msg)
+        });
+    let claude_model_result = claude_model::parse(stdin_clone);
     if let Err(err) = &claude_model_result {
         effects.push(Effect::LogError {
             module: "claude_model".to_owned(),
@@ -134,7 +137,9 @@ fn handle_cache_loaded(
                     error: format!("cache read: {err}"),
                 });
             }
-            Err(usage::Error::CacheRead(err.to_string()))
+            let msg = err.to_string();
+            let cache_err = usage::Error::CacheRead(msg);
+            Err(cache_err)
         }
     };
 
@@ -201,7 +206,8 @@ fn handle_version_cache_loaded(
                     channel: model.channel.clone(),
                 });
             }
-            Some(version::parse_cache(&content))
+            let parsed = version::parse_cache(&content);
+            Some(parsed)
         }
         Err(err) => {
             effects.push(Effect::SpawnVersionRefresh {

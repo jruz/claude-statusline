@@ -6,21 +6,21 @@ fn log_dir() -> Result<PathBuf, std::io::Error> {
     let home_dir = dirs::home_dir().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::NotFound, "Home directory not found")
     })?;
-    Ok(home_dir.join(".cache").join("claude-statusline"))
+    let dir = home_dir.join(".cache").join("claude-statusline");
+    Ok(dir)
 }
 
 fn log_path() -> Result<PathBuf, std::io::Error> {
-    Ok(log_dir()?.join("error.log"))
+    let path = log_dir()?.join("error.log");
+    Ok(path)
 }
 
 pub fn open_log_file() -> Result<fs::File, std::io::Error> {
     let dir = log_dir()?;
     fs::create_dir_all(&dir)?;
 
-    fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_path()?)
+    let path = log_path()?;
+    fs::OpenOptions::new().create(true).append(true).open(path)
 }
 
 pub fn log_error(module: &str, error: &str) {
@@ -34,7 +34,8 @@ fn write_log_entry(module: &str, error: &str) -> Result<(), std::io::Error> {
     let entry = format!("{timestamp} [{module}] {error}\n");
 
     let mut file = open_log_file()?;
-    file.write_all(entry.as_bytes())?;
+    let bytes = entry.as_bytes();
+    file.write_all(bytes)?;
 
     Ok(())
 }

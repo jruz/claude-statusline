@@ -13,7 +13,8 @@ pub fn render(percentage: f64, width: u8) -> Bar {
         None => 0_u16,
     };
     let w = u16::from(width);
-    let filled_count = usize::from((pct * w + 50_u16).div_euclid(100));
+    let raw_filled = (pct * w + 50_u16).div_euclid(100);
+    let filled_count = usize::from(raw_filled);
     let empty_count = usize::from(width).saturating_sub(filled_count);
 
     Bar {

@@ -1,7 +1,8 @@
 use console::Alignment;
 
 pub fn pad_right(text: &str, width: usize) -> String {
-    console::pad_str(text, width, Alignment::Left, Some("...")).to_string()
+    let truncation = Some("...");
+    console::pad_str(text, width, Alignment::Left, truncation).to_string()
 }
 
 #[cfg(test)]

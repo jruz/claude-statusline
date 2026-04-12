@@ -84,8 +84,10 @@ pub fn is_lock_stale(lock_path: &std::path::Path) -> bool {
 }
 
 pub fn parse_cache(content: &str) -> Result<Usage, Error> {
-    let cached: Cached =
-        serde_json::from_str(content).map_err(|err| Error::CacheParse(err.to_string()))?;
+    let cached: Cached = serde_json::from_str(content).map_err(|err| {
+        let msg = err.to_string();
+        Error::CacheParse(msg)
+    })?;
 
     Ok(Usage {
         five_hour: Ok(cached.response.five_hour),
@@ -240,7 +242,8 @@ mod tests {
         std::fs::create_dir_all(&temp_dir).expect("create temp dir");
         let lock_path = temp_dir.join("test.lock");
 
-        drop(File::create(&lock_path).expect("create lock file"));
+        let lock_file = File::create(&lock_path).expect("create lock file");
+        drop(lock_file);
 
         let now_secs = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -248,8 +251,8 @@ mod tests {
             .as_secs();
         let past_secs = i64::try_from(now_secs).expect("secs to i64") - 600;
 
-        filetime::set_file_mtime(&lock_path, filetime::FileTime::from_unix_time(past_secs, 0))
-            .expect("set mtime");
+        let mtime = filetime::FileTime::from_unix_time(past_secs, 0);
+        filetime::set_file_mtime(&lock_path, mtime).expect("set mtime");
 
         assert!(is_lock_stale(&lock_path));
 

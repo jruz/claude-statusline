@@ -31,24 +31,27 @@ pub fn execute(effect: &Effect) -> Option<Msg> {
         }
         Effect::ReadFile { path } => {
             let result = std::fs::read_to_string(path);
-            Some(Msg::PlanLoaded(result))
+            let msg = Msg::PlanLoaded(result);
+            Some(msg)
         }
         Effect::ReadStdin => {
             let mut input = String::new();
             let result = std::io::stdin()
                 .read_to_string(&mut input)
                 .map(|_bytes_read| input);
-            Some(Msg::StdinReceived(result))
+            let msg = Msg::StdinReceived(result);
+            Some(msg)
         }
         Effect::ReadUsageCache => {
-            let result = match usage::cache_path() {
-                Some(path) => std::fs::read_to_string(path),
-                None => Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "cache directory not found",
-                )),
+            let result = if let Some(path) = usage::cache_path() {
+                std::fs::read_to_string(path)
+            } else {
+                let err =
+                    std::io::Error::new(std::io::ErrorKind::NotFound, "cache directory not found");
+                Err(err)
             };
-            Some(Msg::CacheLoaded(result))
+            let msg = Msg::CacheLoaded(result);
+            Some(msg)
         }
         Effect::SpawnBackgroundRefresh => {
             spawn_background_refresh();
@@ -58,27 +61,34 @@ pub fn execute(effect: &Effect) -> Option<Msg> {
             let result = std::process::Command::new("claude")
                 .arg("--version")
                 .output()
-                .map_err(|err| std::io::Error::other(err.to_string()))
+                .map_err(|err| {
+                    let msg = err.to_string();
+                    std::io::Error::other(msg)
+                })
                 .and_then(|output| {
                     if output.status.success() {
                         String::from_utf8(output.stdout).map_err(|err| {
-                            std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+                            let msg = err.to_string();
+                            std::io::Error::new(std::io::ErrorKind::InvalidData, msg)
                         })
                     } else {
-                        Err(std::io::Error::other("command failed"))
+                        let err = std::io::Error::other("command failed");
+                        Err(err)
                     }
                 });
-            Some(Msg::VersionLoaded(result))
+            let msg = Msg::VersionLoaded(result);
+            Some(msg)
         }
         Effect::ReadVersionCache => {
-            let result = match version::cache_path() {
-                Some(path) => std::fs::read_to_string(path),
-                None => Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "cache directory not found",
-                )),
+            let result = if let Some(path) = version::cache_path() {
+                std::fs::read_to_string(path)
+            } else {
+                let err =
+                    std::io::Error::new(std::io::ErrorKind::NotFound, "cache directory not found");
+                Err(err)
             };
-            Some(Msg::VersionCacheLoaded(result))
+            let msg = Msg::VersionCacheLoaded(result);
+            Some(msg)
         }
         Effect::SpawnVersionRefresh { channel } => {
             spawn_version_refresh(channel);
@@ -105,11 +115,14 @@ fn spawn_background_refresh() {
     };
 
     std::thread::spawn(move || {
+        let null_stdin = std::process::Stdio::null();
+        let null_stdout = std::process::Stdio::null();
+        let stderr_stdio = std::process::Stdio::from(stderr_file);
         let result = std::process::Command::new(exe)
             .arg("--refresh-usage")
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::from(stderr_file))
+            .stdin(null_stdin)
+            .stdout(null_stdout)
+            .stderr(stderr_stdio)
             .output();
 
         match result {
@@ -152,11 +165,14 @@ fn spawn_version_refresh(channel: &version::Channel) {
 
     let channel_str = version::channel_as_str(channel).to_string();
     std::thread::spawn(move || {
+        let null_stdin = std::process::Stdio::null();
+        let null_stdout = std::process::Stdio::null();
+        let stderr_stdio = std::process::Stdio::from(stderr_file);
         let result = std::process::Command::new(exe)
             .args(["--refresh-version", "--channel", &channel_str])
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::from(stderr_file))
+            .stdin(null_stdin)
+            .stdout(null_stdout)
+            .stderr(stderr_stdio)
             .output();
 
         match result {
