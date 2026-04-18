@@ -9,7 +9,7 @@ use crate::effect::Msg;
 pub struct Model {
     pub channel: version::Channel,
     pub claude: Option<Result<String, claude_model::Error>>,
-    pub context: Option<Result<f64, context::Error>>,
+    pub context: Option<Result<context::Context, context::Error>>,
     pub plan: Option<Result<plan::Progress, plan::Error>>,
     pub usage: Option<Result<usage::Usage, usage::Error>>,
     pub version: Option<version::Version>,

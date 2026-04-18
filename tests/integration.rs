@@ -9,123 +9,123 @@ mod tests {
     }
 
     #[test]
-    fn context_adjusts_for_autocompact_buffer() {
+    fn context_displays_token_count() {
         let has_context = predicate::str::contains("Context:");
-        let has_50_pct = predicate::str::contains("50%");
+        let has_152k = predicate::str::contains("152k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":42}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":42,"total_input_tokens":100000,"total_output_tokens":52000}}"#)
             .assert()
             .success()
             .stdout(has_context)
-            .stdout(has_50_pct);
+            .stdout(has_152k);
     }
 
     #[test]
-    fn context_color_green_below_40_adjusted() {
+    fn context_color_green_below_180k() {
         let has_green = predicate::str::contains("\x1b[32m");
-        let has_36_pct = predicate::str::contains("36%");
+        let has_100k = predicate::str::contains("100k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":30}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":30,"total_input_tokens":60000,"total_output_tokens":40000}}"#)
             .assert()
             .success()
             .stdout(has_green)
-            .stdout(has_36_pct);
+            .stdout(has_100k);
     }
 
     #[test]
-    fn context_color_yellow_at_40_adjusted() {
+    fn context_color_yellow_at_180k() {
         let has_yellow = predicate::str::contains("\x1b[33m");
-        let has_41_pct = predicate::str::contains("41%");
+        let has_180k = predicate::str::contains("180k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":34}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":40,"total_input_tokens":100000,"total_output_tokens":80000}}"#)
             .assert()
             .success()
             .stdout(has_yellow)
-            .stdout(has_41_pct);
+            .stdout(has_180k);
     }
 
     #[test]
-    fn context_color_yellow_below_60_adjusted() {
+    fn context_color_yellow_below_190k() {
         let has_yellow = predicate::str::contains("\x1b[33m");
-        let has_59_pct = predicate::str::contains("59%");
+        let has_189k = predicate::str::contains("189k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":49}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":50,"total_input_tokens":100000,"total_output_tokens":89000}}"#)
             .assert()
             .success()
             .stdout(has_yellow)
-            .stdout(has_59_pct);
+            .stdout(has_189k);
     }
 
     #[test]
-    fn context_color_red_at_60_adjusted() {
+    fn context_color_red_at_190k() {
         let has_red = predicate::str::contains("\x1b[31m");
-        let has_60_pct = predicate::str::contains("60%");
+        let has_190k = predicate::str::contains("190k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":50}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":60,"total_input_tokens":100000,"total_output_tokens":90000}}"#)
             .assert()
             .success()
             .stdout(has_red)
-            .stdout(has_60_pct);
+            .stdout(has_190k);
     }
 
     #[test]
-    fn context_caps_at_100() {
+    fn context_color_red_above_190k() {
         let has_red = predicate::str::contains("\x1b[31m");
-        let has_100_pct = predicate::str::contains("100%");
+        let has_250k = predicate::str::contains("250k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":100}}"#)
+        cmd.write_stdin(r#"{"context_window":{"used_percentage":80,"total_input_tokens":150000,"total_output_tokens":100000}}"#)
             .assert()
             .success()
             .stdout(has_red)
-            .stdout(has_100_pct);
+            .stdout(has_250k);
     }
 
     #[test]
-    fn context_shows_zero_when_used_percentage_is_null() {
+    fn context_shows_zero_when_no_tokens() {
         let has_context = predicate::str::contains("Context:");
-        let has_0_pct = predicate::str::contains("0%");
+        let has_0k = predicate::str::contains("0k");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"used_percentage":null}}"#)
             .assert()
             .success()
             .stdout(has_context)
-            .stdout(has_0_pct);
+            .stdout(has_0k);
     }
 
     #[test]
-    fn context_shows_zero_when_used_percentage_is_null_with_tokens_present() {
+    fn context_shows_token_count_when_percentage_is_null() {
         let has_context = predicate::str::contains("Context:");
-        let has_0_pct = predicate::str::contains("0%");
+        let has_100k = predicate::str::contains("100k");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"context_window":{"total_input_tokens":50000,"total_output_tokens":50000,"context_window_size":200000,"used_percentage":null}}"#)
             .assert()
             .success()
             .stdout(has_context)
-            .stdout(has_0_pct);
+            .stdout(has_100k);
     }
 
     #[test]
     fn context_missing_field_shows_zero() {
         let has_context = predicate::str::contains("Context:");
-        let has_0_pct = predicate::str::contains("0%");
+        let has_0k = predicate::str::contains("0k");
         let mut cmd = statusline();
         cmd.write_stdin("{}")
             .assert()
             .success()
             .stdout(has_context)
-            .stdout(has_0_pct);
+            .stdout(has_0k);
     }
 
     #[test]
     fn context_shows_zero_with_model_only_json() {
         let has_context = predicate::str::contains("Context:");
-        let has_0_pct = predicate::str::contains("0%");
+        let has_0k = predicate::str::contains("0k");
         let mut cmd = statusline();
         cmd.write_stdin(r#"{"model":{"display_name":"Any Model Name"}}"#)
             .assert()
             .success()
             .stdout(has_context)
-            .stdout(has_0_pct);
+            .stdout(has_0k);
     }
 
     #[test]
@@ -234,8 +234,7 @@ mod tests {
         let plan_path = temp_dir.path().join("PLAN.md");
         std::fs::write(&plan_path, "- [x] Done\n- [ ] Todo\n").expect("failed to write PLAN.md");
 
-        let json =
-            r#"{"context_window":{"used_percentage":42},"model":{"display_name":"Opus 4.5"}}"#;
+        let json = r#"{"context_window":{"used_percentage":42,"total_input_tokens":100000,"total_output_tokens":52000},"model":{"display_name":"Opus 4.5"}}"#;
 
         let dir = temp_dir.path();
         let mut cmd = statusline();
