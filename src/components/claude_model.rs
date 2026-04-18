@@ -35,9 +35,20 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<String, Error> {
 
 pub fn render(model: Option<&Result<String, Error>>) -> String {
     let value = match model {
-        Some(Ok(name)) => name.clone(),
+        Some(Ok(name)) => shorten(name),
         Some(Err(_err)) => "err".red().to_string(),
         None => "...".to_string(),
     };
     format!("Model: {value}")
+}
+
+fn shorten(name: &str) -> String {
+    let Some((before, after)) = name.split_once("(with ") else {
+        return name.to_string();
+    };
+    let base = before.trim_end();
+    match after.split_whitespace().next() {
+        Some(capacity) => format!("{base} {capacity}"),
+        None => base.to_string(),
+    }
 }
