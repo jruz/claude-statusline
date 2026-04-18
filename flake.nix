@@ -91,6 +91,7 @@
             sandbox
             statix
             taplo
+            woodpecker-cli
             yamllint
             zprint
           ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ glibc glibcLocales ];
