@@ -12,7 +12,6 @@ rust-check:
     just rust-cargo-check
     just rust-fmt-check
     just rust-clippy
-    just rust-test
 
 rust-fmt-check:
     cargo fmt --all -- --check
@@ -138,12 +137,9 @@ test:
     just rust-test
 
 release-build OS ARCH:
-    docker run --rm \
-        --volume {{ justfile_directory() }}:/work \
-        --workdir /work \
-        --env REVISION={{ env("REVISION") }} \
-        ghcr.io/rust-cross/cargo-zigbuild:0.21.4 \
-        scripts/release-build.sh {{ OS }} {{ ARCH }}
+    sandbox nu scripts/release-build.nu {{ OS }} {{ ARCH }}
+release-bump VERSION:
+    nu scripts/release-bump.nu {{ VERSION }}
 
 release-upload TAG:
     bun scripts/release-upload.ts {{ TAG }}
