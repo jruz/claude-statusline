@@ -28,7 +28,8 @@ Current version from `claude --version`. Latest version fetched from `https://re
 ## Commands
 
 - `just check`: Lint + test
-- `just demo`: Run with sample data
+- `just demo`: Run with sample data (builds debug binary, uses real cache/version)
+- `--debug`: Log raw stdin payload to `~/.cache/claude-statusline/error.log`
 - `just build-linux`: Release build for Linux x86_64
 - `just build-macos`: Release build for macOS x86_64 + ARM64
 - `just release-upload <tag>`: Upload binaries to Codeberg release

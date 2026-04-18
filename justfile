@@ -165,12 +165,7 @@ worktree-remove NAME:
 
 demo:
     #!/usr/bin/env nu
-    let json = ({
-        context_window: {
-            used_percentage: 42
-            total_input_tokens: 100000
-            total_output_tokens: 52000
-        }
-        model: { display_name: "Opus 4.6 (with 1M context)" }
-    } | to json --raw)
-    $json | ^sandbox cargo run --quiet
+    ^just rust-build
+    (open tests/fixtures/demo_stdin.json
+        | to json --raw
+        | ^./target/debug/claude-statusline)
