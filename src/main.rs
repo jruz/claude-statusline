@@ -34,6 +34,7 @@ fn main() -> color_eyre::Result<()> {
         })?;
 
     let args: Vec<String> = std::env::args().collect();
+    let debug = args.iter().any(|arg| arg == "--debug");
     let output = match args.get(1).map(String::as_str) {
         Some("--version") => version::clap_version().to_string(),
         Some("--refresh-usage") => {
@@ -48,7 +49,7 @@ fn main() -> color_eyre::Result<()> {
             let channel = parse_channel(&args)?;
             let (mut model, mut effects) = init(channel);
             while let Some(effect) = effects.pop() {
-                if let Some(msg) = execute(&effect) {
+                if let Some(msg) = execute(&effect, debug) {
                     let (new_model, new_effects) = update(model, msg);
                     model = new_model;
                     effects.extend(new_effects);

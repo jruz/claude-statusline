@@ -23,7 +23,7 @@ pub enum Msg {
     VersionLoaded(Result<String, std::io::Error>),
 }
 
-pub fn execute(effect: &Effect) -> Option<Msg> {
+pub fn execute(effect: &Effect, debug: bool) -> Option<Msg> {
     match effect {
         Effect::LogError { module, error } => {
             shared::logging::log_error(module, error);
@@ -39,6 +39,13 @@ pub fn execute(effect: &Effect) -> Option<Msg> {
             let result = std::io::stdin()
                 .read_to_string(&mut input)
                 .map(|_bytes_read| input);
+            if debug {
+                let payload = match &result {
+                    Ok(content) => content.clone(),
+                    Err(err) => format!("<io error: {err}>"),
+                };
+                shared::logging::log_error("stdin", &payload);
+            }
             let msg = Msg::StdinReceived(result);
             Some(msg)
         }
