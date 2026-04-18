@@ -43,12 +43,15 @@ pub fn render(model: Option<&Result<String, Error>>) -> String {
 }
 
 fn shorten(name: &str) -> String {
-    let Some((before, after)) = name.split_once("(with ") else {
+    let Some((base_raw, inner)) = name.split_once('(') else {
         return name.to_string();
     };
-    let base = before.trim_end();
-    match after.split_whitespace().next() {
-        Some(capacity) => format!("{base} {capacity}"),
+    let base = base_raw.trim_end();
+    let capacity = inner
+        .split_whitespace()
+        .find(|word| word.ends_with('k') || word.ends_with('K') || word.ends_with('M'));
+    match capacity {
+        Some(cap) => format!("{base} {cap}"),
         None => base.to_string(),
     }
 }
