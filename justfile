@@ -1,12 +1,12 @@
 # bin projects only
 install:
-    cargo install --path . --force
+    sandbox cargo install --path . --force
 
 rust-build:
-    cargo build --all-targets
+    sandbox cargo build --all-targets
 
 rust-cargo-check:
-    cargo check --all-targets
+    sandbox cargo check --all-targets
 
 rust-check:
     just rust-cargo-check
@@ -14,13 +14,13 @@ rust-check:
     just rust-clippy
 
 rust-fmt-check:
-    cargo fmt --all -- --check
+    sandbox cargo fmt --all -- --check
 
 rust-clippy *ARGS='':
-    cargo clippy --all-targets {{ARGS}}
+    sandbox cargo clippy --all-targets {{ARGS}}
 
 rust-clippy-fix *ARGS='':
-    cargo clippy \
+    sandbox cargo clippy \
         --fix \
         --all-targets \
         --allow-dirty \
@@ -31,19 +31,19 @@ rust-fix:
     just rust-clippy-fix
 
 rust-fmt-fix:
-    cargo fmt --all
+    sandbox cargo fmt --all
 
 rust-outdated:
-    cargo outdated
+    sandbox cargo outdated
 
 rust-test *FILTER='':
-    cargo nextest run \
+    sandbox cargo nextest run \
         --no-tests=pass \
         {{FILTER}}
 
 rust-upgrade:
-    cargo upgrade --incompatible
-    cargo update
+    sandbox cargo upgrade --incompatible
+    sandbox cargo update
 
 woodpecker-check:
     woodpecker-cli lint \
@@ -115,7 +115,11 @@ yaml-check:
         --strict \
         --config-file .yamllint.yaml
 
+sandbox-check:
+    sandbox bun scripts/sandbox-check.ts
+
 check:
+    just sandbox-check
     just clj-check
     just woodpecker-check
     just md-check
@@ -138,14 +142,15 @@ test:
 
 release-build OS ARCH:
     sandbox nu scripts/release-build.nu {{ OS }} {{ ARCH }}
+
 release-bump VERSION:
     nu scripts/release-bump.nu {{ VERSION }}
 
 release-upload TAG:
-    bun scripts/release-upload.ts {{ TAG }}
+    sandbox bun scripts/release-upload.ts {{ TAG }}
 
 release-delete TAG:
-    bun scripts/release-delete.ts {{ TAG }}
+    sandbox bun scripts/release-delete.ts {{ TAG }}
 
 worktree-add NAME:
     #!/usr/bin/env nu
@@ -168,4 +173,4 @@ demo:
         }
         model: { display_name: "Opus 4.6 (with 1M context)" }
     } | to json --raw)
-    $json | ^cargo run --quiet
+    $json | ^sandbox cargo run --quiet
