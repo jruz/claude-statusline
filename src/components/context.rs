@@ -3,9 +3,7 @@ use serde::Deserialize;
 
 use crate::shared::progress_bar;
 
-const AUTOCOMPACT_BUFFER: f64 = 0.165;
-const EFFECTIVE_CAPACITY: f64 = 100.0 - AUTOCOMPACT_BUFFER * 100.0;
-const PERCENTAGE_SCALE: f64 = 100.0 / EFFECTIVE_CAPACITY;
+const CAPACITY: u64 = 200_000;
 const THRESHOLD_RED: u64 = 190_000;
 const THRESHOLD_ORANGE: u64 = 180_000;
 
@@ -33,7 +31,6 @@ struct StdinJson {
 struct ContextWindowJson {
     total_input_tokens: Option<u64>,
     total_output_tokens: Option<u64>,
-    used_percentage: Option<f64>,
 }
 
 pub fn parse(result: Result<String, std::io::Error>) -> Result<Context, Error> {
@@ -41,12 +38,6 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<Context, Error> {
     let parsed: StdinJson = serde_json::from_str(&input).map_err(Error::ParseJson)?;
 
     let cw = parsed.context_window;
-
-    let raw_pct = cw
-        .as_ref()
-        .and_then(|cw_ref| cw_ref.used_percentage)
-        .unwrap_or(0.0_f64);
-    let percentage = raw_pct.mul_add(PERCENTAGE_SCALE, 0.0_f64).min(100.0_f64);
 
     let input_tokens = cw
         .as_ref()
@@ -57,6 +48,8 @@ pub fn parse(result: Result<String, std::io::Error>) -> Result<Context, Error> {
         .and_then(|cw_ref| cw_ref.total_output_tokens)
         .unwrap_or(0_u64);
     let tokens = input_tokens + output_tokens;
+
+    let percentage = tokens_to_percentage(tokens);
 
     Ok(Context { percentage, tokens })
 }
@@ -99,4 +92,10 @@ fn colorize_text(text: &str, tokens: u64) -> String {
     } else {
         text.to_string()
     }
+}
+
+fn tokens_to_percentage(tokens: u64) -> f64 {
+    let scaled = tokens.saturating_mul(100).div_euclid(CAPACITY);
+    let clamped = u32::try_from(scaled).unwrap_or(u32::MAX);
+    f64::from(clamped).min(100.0)
 }
