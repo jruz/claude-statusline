@@ -13,7 +13,7 @@ mod tests {
         let has_context = predicate::str::contains("Context:");
         let has_152k = predicate::str::contains("152k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":42,"total_input_tokens":100000,"total_output_tokens":52000}}"#)
+        cmd.write_stdin(r#"{"context_window":{"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":50000,"cache_read_input_tokens":100000,"output_tokens":5000}}}"#)
             .assert()
             .success()
             .stdout(has_context)
@@ -25,7 +25,7 @@ mod tests {
         let has_green = predicate::str::contains("\x1b[32m");
         let has_100k = predicate::str::contains("100k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":30,"total_input_tokens":60000,"total_output_tokens":40000}}"#)
+        cmd.write_stdin(r#"{"context_window":{"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":9000,"cache_read_input_tokens":90000,"output_tokens":40000}}}"#)
             .assert()
             .success()
             .stdout(has_green)
@@ -37,7 +37,7 @@ mod tests {
         let has_yellow = predicate::str::contains("\x1b[33m");
         let has_180k = predicate::str::contains("180k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":40,"total_input_tokens":100000,"total_output_tokens":80000}}"#)
+        cmd.write_stdin(r#"{"context_window":{"current_usage":{"input_tokens":5000,"cache_creation_input_tokens":75000,"cache_read_input_tokens":100000,"output_tokens":80000}}}"#)
             .assert()
             .success()
             .stdout(has_yellow)
@@ -49,7 +49,7 @@ mod tests {
         let has_yellow = predicate::str::contains("\x1b[33m");
         let has_189k = predicate::str::contains("189k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":50,"total_input_tokens":100000,"total_output_tokens":89000}}"#)
+        cmd.write_stdin(r#"{"context_window":{"current_usage":{"input_tokens":9000,"cache_creation_input_tokens":80000,"cache_read_input_tokens":100000,"output_tokens":89000}}}"#)
             .assert()
             .success()
             .stdout(has_yellow)
@@ -61,7 +61,7 @@ mod tests {
         let has_red = predicate::str::contains("\x1b[31m");
         let has_190k = predicate::str::contains("190k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":60,"total_input_tokens":100000,"total_output_tokens":90000}}"#)
+        cmd.write_stdin(r#"{"context_window":{"current_usage":{"input_tokens":10000,"cache_creation_input_tokens":80000,"cache_read_input_tokens":100000,"output_tokens":90000}}}"#)
             .assert()
             .success()
             .stdout(has_red)
@@ -73,7 +73,7 @@ mod tests {
         let has_red = predicate::str::contains("\x1b[31m");
         let has_250k = predicate::str::contains("250k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":80,"total_input_tokens":150000,"total_output_tokens":100000}}"#)
+        cmd.write_stdin(r#"{"context_window":{"current_usage":{"input_tokens":50000,"cache_creation_input_tokens":100000,"cache_read_input_tokens":100000,"output_tokens":100000}}}"#)
             .assert()
             .success()
             .stdout(has_red)
@@ -85,7 +85,7 @@ mod tests {
         let has_context = predicate::str::contains("Context:");
         let has_0k = predicate::str::contains("0k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"used_percentage":null}}"#)
+        cmd.write_stdin(r#"{"context_window":{"current_usage":null}}"#)
             .assert()
             .success()
             .stdout(has_context)
@@ -93,11 +93,11 @@ mod tests {
     }
 
     #[test]
-    fn context_shows_token_count_when_percentage_is_null() {
+    fn context_ignores_output_tokens() {
         let has_context = predicate::str::contains("Context:");
         let has_100k = predicate::str::contains("100k");
         let mut cmd = statusline();
-        cmd.write_stdin(r#"{"context_window":{"total_input_tokens":50000,"total_output_tokens":50000,"context_window_size":200000,"used_percentage":null}}"#)
+        cmd.write_stdin(r#"{"context_window":{"current_usage":{"input_tokens":50000,"cache_creation_input_tokens":0,"cache_read_input_tokens":50000,"output_tokens":80000}}}"#)
             .assert()
             .success()
             .stdout(has_context)
@@ -234,7 +234,7 @@ mod tests {
         let plan_path = temp_dir.path().join("PLAN.md");
         std::fs::write(&plan_path, "- [x] Done\n- [ ] Todo\n").expect("failed to write PLAN.md");
 
-        let json = r#"{"context_window":{"used_percentage":42,"total_input_tokens":100000,"total_output_tokens":52000},"model":{"display_name":"Opus 4.5"}}"#;
+        let json = r#"{"context_window":{"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":50000,"cache_read_input_tokens":100000,"output_tokens":5000}},"model":{"display_name":"Opus 4.5"}}"#;
 
         let dir = temp_dir.path();
         let mut cmd = statusline();

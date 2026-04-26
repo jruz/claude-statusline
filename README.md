@@ -54,7 +54,7 @@ Add to `~/.claude/settings.json`:
 
 | Component | Source |
 |-----------|--------|
-| Context | `context_window.used_percentage` from stdin JSON |
+| Context | `context_window.current_usage` (input + cache tokens) from stdin JSON |
 | Model | `model.display_name` from stdin JSON |
 | Version | `claude --version` + npm registry for update check |
 | PLAN.md | Counts `- [x]` and `- [ ]` checkboxes in `./PLAN.md` |

@@ -25,10 +25,16 @@ Received via stdin JSON from Claude Code.
 ```json
 {
   "context_window": {
-    "used_percentage": 42.5
+    "current_usage": {
+      "input_tokens": 2000,
+      "cache_creation_input_tokens": 50000,
+      "cache_read_input_tokens": 100000
+    }
   }
 }
 ```
+
+Tokens-in-context = `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (output tokens excluded — matches Claude Code's `/context`).
 
 ## Model
 

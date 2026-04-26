@@ -1,8 +1,11 @@
 {
   "context_window": {
-    "used_percentage": 42,
-    "total_input_tokens": 100000,
-    "total_output_tokens": 52000
+    "current_usage": {
+      "input_tokens": 2000,
+      "cache_creation_input_tokens": 50000,
+      "cache_read_input_tokens": 100000,
+      "output_tokens": 1500
+    }
   },
   "model": {
     "display_name": "Opus 4.6 (1M context)"

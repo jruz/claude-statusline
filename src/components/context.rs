@@ -29,25 +29,40 @@ struct StdinJson {
 
 #[derive(Debug, Deserialize)]
 struct ContextWindowJson {
-    total_input_tokens: Option<u64>,
-    total_output_tokens: Option<u64>,
+    current_usage: Option<CurrentUsageJson>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CurrentUsageJson {
+    #[serde(rename = "cache_creation_input_tokens")]
+    cache_creation: Option<u64>,
+    #[serde(rename = "cache_read_input_tokens")]
+    cache_read: Option<u64>,
+    #[serde(rename = "input_tokens")]
+    input: Option<u64>,
 }
 
 pub fn parse(result: Result<String, std::io::Error>) -> Result<Context, Error> {
     let input = result.map_err(Error::ReadStdin)?;
     let parsed: StdinJson = serde_json::from_str(&input).map_err(Error::ParseJson)?;
 
-    let cw = parsed.context_window;
+    let usage = parsed
+        .context_window
+        .and_then(|cw_ref| cw_ref.current_usage);
 
-    let input_tokens = cw
+    let input_count = usage
         .as_ref()
-        .and_then(|cw_ref| cw_ref.total_input_tokens)
+        .and_then(|usage_ref| usage_ref.input)
         .unwrap_or(0_u64);
-    let output_tokens = cw
+    let cache_creation = usage
         .as_ref()
-        .and_then(|cw_ref| cw_ref.total_output_tokens)
+        .and_then(|usage_ref| usage_ref.cache_creation)
         .unwrap_or(0_u64);
-    let tokens = input_tokens + output_tokens;
+    let cache_read = usage
+        .as_ref()
+        .and_then(|usage_ref| usage_ref.cache_read)
+        .unwrap_or(0_u64);
+    let tokens = input_count + cache_creation + cache_read;
 
     let percentage = tokens_to_percentage(tokens);
 
