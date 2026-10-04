@@ -13,6 +13,7 @@ TEA (The Elm Architecture): Model → Update → View
 
 - `components/context.rs`: Sum `context_window.current_usage` input/cache tokens from stdin JSON (matches Claude Code's `/context`)
 - `components/claude_model.rs`: Parse `model.display_name` from stdin JSON
+- `components/effort.rs`: Parse `effort.level` from stdin JSON (rendered as `Thinking:`)
 - `components/plan.rs`: Count `- [x]` / `- [ ]` checkboxes in PLAN.md
 - `components/usage.rs`: Read cached API usage from `~/.cache/claude-statusline/usage.json`
 - `components/version.rs`: Run `claude --version`, check npm registry for updates

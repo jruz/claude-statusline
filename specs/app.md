@@ -5,35 +5,35 @@ A status line renderer for Claude Code that displays context usage, model info, 
 ## Mockup
 
 ```
-Context: ████░░░░░░ 42%    Model: Opus 4.5    5h: ███░░ 60% (2h 15m)
-Plan: ████░░░░░░ 40% (12 left)  v1.0.17      7d: ██░░░ 40% (3d 12h)
+Context: ━━━━━━━━━━ 152k    Model: Opus 4.6 1M    5h: ━━━━━━━━━━  28% (2h 19m)
+PLAN.md: ━━━━━━━━━━  60%    Thinking: high        7d: ━━━━━━━━━━   4% (2d 5h)
+Version: 2.1.280
 ```
 
 When newer Claude Code version available:
 
 ```
-Context: ████░░░░░░ 42%    Model: Opus 4.5    5h: ███░░ 60% (2h 15m)
-Plan: ████░░░░░░ 40% (12 left)  v1.0.17 ↑    7d: ██░░░ 40% (3d 12h)
+Version: 2.1.280↑
 ```
 
 ## Error State
 
 ```
-Context: ████░░░░░░ 42%    Model: Opus 4.5    5h: err
-Plan: err                       v1.0.17      7d: err
-Errors(3): API request failed
+Context: err                Model: err            5h: err
+PLAN.md: err                Thinking: err         7d: err
+Version: err
 ```
 
 Note: Version update check fails silently (shows current version without update indicator).
 
 - Failed components display `err` in red
-- Third line shows error count and last error message (only if errors > 0)
 - All errors logged to `~/.cache/claude-statusline/error.log`
 
 ## Components
 
 - [context](components/context.md) - Context window usage display
 - [claude-model](components/claude-model.md) - Model name display
+- [effort](components/effort.md) - Reasoning effort (thinking level) display
 - [plan](components/plan.md) - PLAN.md progress display
 - [usage](components/usage.md) - API rate limit display
 - [version](components/version.md) - Claude Code version with update indicator

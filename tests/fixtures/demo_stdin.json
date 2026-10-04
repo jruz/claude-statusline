@@ -9,5 +9,8 @@
   },
   "model": {
     "display_name": "Opus 4.6 (1M context)"
+  },
+  "effort": {
+    "level": "high"
   }
 }

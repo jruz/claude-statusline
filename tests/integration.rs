@@ -229,12 +229,34 @@ mod tests {
     }
 
     #[test]
-    fn full_output_renders_all_components_on_two_lines() {
+    fn effort_renders_level() {
+        let has_effort = predicate::str::contains("Thinking: high");
+        let mut cmd = statusline();
+        cmd.write_stdin(r#"{"effort":{"level":"high"}}"#)
+            .assert()
+            .success()
+            .stdout(has_effort);
+    }
+
+    #[test]
+    fn effort_missing_field_shows_na() {
+        let has_effort = predicate::str::contains("Thinking:");
+        let has_na = predicate::str::contains("n/a");
+        let mut cmd = statusline();
+        cmd.write_stdin("{}")
+            .assert()
+            .success()
+            .stdout(has_effort)
+            .stdout(has_na);
+    }
+
+    #[test]
+    fn full_output_renders_all_components_on_three_lines() {
         let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
         let plan_path = temp_dir.path().join("PLAN.md");
         std::fs::write(&plan_path, "- [x] Done\n- [ ] Todo\n").expect("failed to write PLAN.md");
 
-        let json = r#"{"context_window":{"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":50000,"cache_read_input_tokens":100000,"output_tokens":5000}},"model":{"display_name":"Opus 4.5"}}"#;
+        let json = r#"{"context_window":{"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":50000,"cache_read_input_tokens":100000,"output_tokens":5000}},"model":{"display_name":"Opus 4.5"},"effort":{"level":"high"}}"#;
 
         let dir = temp_dir.path();
         let mut cmd = statusline();
@@ -250,16 +272,19 @@ mod tests {
         let stdout = String::from_utf8_lossy(&output);
         let output_lines: Vec<&str> = stdout.lines().collect();
         assert!(
-            output_lines.len() >= 2,
-            "Expected at least 2 lines, got {}",
+            output_lines.len() >= 3,
+            "Expected at least 3 lines, got {}",
             output_lines.len()
         );
         let first_line = output_lines.first().expect("expected first line");
         let second_line = output_lines.get(1).expect("expected second line");
+        let third_line = output_lines.get(2).expect("expected third line");
         assert!(first_line.contains("Context:"));
         assert!(first_line.contains("Model:"));
         assert!(first_line.contains("5h:"));
         assert!(second_line.contains("PLAN.md:"));
+        assert!(second_line.contains("Thinking: high"));
         assert!(second_line.contains("7d:"));
+        assert!(third_line.contains("Version:"));
     }
 }

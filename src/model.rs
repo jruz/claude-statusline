@@ -1,5 +1,6 @@
 use crate::components::claude_model;
 use crate::components::context;
+use crate::components::effort;
 use crate::components::plan;
 use crate::components::usage;
 use crate::components::version;
@@ -10,6 +11,7 @@ pub struct Model {
     pub channel: version::Channel,
     pub claude: Option<Result<String, claude_model::Error>>,
     pub context: Option<Result<context::Context, context::Error>>,
+    pub effort: Option<Result<Option<String>, effort::Error>>,
     pub plan: Option<Result<plan::Progress, plan::Error>>,
     pub usage: Option<Result<usage::Usage, usage::Error>>,
     pub version: Option<version::Version>,
@@ -20,6 +22,7 @@ pub fn init(channel: version::Channel) -> (Model, Vec<Effect>) {
         channel,
         claude: None,
         context: None,
+        effort: None,
         plan: None,
         usage: None,
         version: None,
@@ -82,18 +85,20 @@ fn handle_stdin_received(
         Err(err) => format!("<io error: {err}>"),
     };
 
-    let stdin_clone = result
-        .as_ref()
-        .map(std::clone::Clone::clone)
-        .map_err(|io_err| {
-            let kind = io_err.kind();
-            let msg = io_err.to_string();
-            std::io::Error::new(kind, msg)
-        });
-    let claude_model_result = claude_model::parse(stdin_clone);
+    let stdin_for_model = clone_stdin(&result);
+    let claude_model_result = claude_model::parse(stdin_for_model);
     if let Err(err) = &claude_model_result {
         effects.push(Effect::LogError {
             module: "claude_model".to_owned(),
+            error: format!("{err} | input: {input_for_log}"),
+        });
+    }
+
+    let stdin_for_effort = clone_stdin(&result);
+    let effort_result = effort::parse(stdin_for_effort);
+    if let Err(err) = &effort_result {
+        effects.push(Effect::LogError {
+            module: "effort".to_owned(),
             error: format!("{err} | input: {input_for_log}"),
         });
     }
@@ -110,10 +115,26 @@ fn handle_stdin_received(
         Model {
             claude: Some(claude_model_result),
             context: Some(context_result),
+            effort: Some(effort_result),
             ..model
         },
         effects,
     )
+}
+
+fn clone_stdin(result: &Result<String, std::io::Error>) -> Result<String, std::io::Error> {
+    match result {
+        Ok(content) => {
+            let cloned = content.clone();
+            Ok(cloned)
+        }
+        Err(io_err) => {
+            let kind = io_err.kind();
+            let msg = io_err.to_string();
+            let cloned = std::io::Error::new(kind, msg);
+            Err(cloned)
+        }
+    }
 }
 
 fn handle_cache_loaded(
