@@ -10,14 +10,21 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      rust-overlay,
+      flake-utils,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
         rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        rustToolchain =
-          builtins.fromTOML (builtins.readFile ./rust-toolchain.toml);
+        rustToolchain = builtins.fromTOML (builtins.readFile ./rust-toolchain.toml);
         rustVersion = rustToolchain.toolchain.channel;
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
         nu-lint = import ./nu-lint.nix { inherit pkgs; };
@@ -77,7 +84,8 @@
           )
           exec ${pkgs.bubblewrap}/bin/bwrap "''${ARGS[@]}" -- "$@"
         '';
-        defaultPackages = with pkgs;
+        defaultPackages =
+          with pkgs;
           [
             babashka
             clj-kondo
@@ -85,7 +93,7 @@
             fd
             just
             markdownlint-cli2
-            nixfmt-classic
+            nixfmt
             nu-lint
             nushell
             ripgrep
@@ -95,8 +103,13 @@
             woodpecker-cli
             yamllint
             zprint
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ glibc glibcLocales ];
-      in {
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            glibc
+            glibcLocales
+          ];
+      in
+      {
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = cargoToml.package.name;
           inherit (cargoToml.package) version;
@@ -105,8 +118,7 @@
           REVISION = revision;
           CARGO_HOME = "$TMPDIR";
           doCheck = false;
-          buildInputs =
-            pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
+          buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
         };
 
         devShells.default = pkgs.mkShell {
@@ -119,9 +131,11 @@
             echo "  rustc ${rustVersion} (sandbox)"
             echo "  bun ${pkgs.bun.version} (sandbox)"
             echo ""
-          '' + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+          ''
+          + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
             export LOCALE_ARCHIVE="${pkgs.glibcLocales}/lib/locale/locale-archive"
           '';
         };
-      });
+      }
+    );
 }
