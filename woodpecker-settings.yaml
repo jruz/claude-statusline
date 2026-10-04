@@ -6,6 +6,7 @@ secrets:
     events:
       - tag
       - push
+      - manual
     value: |
       -----BEGIN AGE ENCRYPTED FILE-----
       YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBaTkEyU20wdzhyT3Y3TWFk
