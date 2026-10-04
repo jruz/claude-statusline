@@ -53,7 +53,7 @@ Add to `~/.claude/settings.json`:
 ### Data Sources
 
 | Component | Source |
-|-----------|--------|
+| --- | --- |
 | Context | `context_window.current_usage` (input + cache tokens) and `context_window.context_window_size` from stdin JSON |
 | Model | `model.display_name` from stdin JSON |
 | Version | `claude --version` + npm registry for update check |

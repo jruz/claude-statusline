@@ -104,7 +104,7 @@ struct Response {
 ## States
 
 | State | Condition | View |
-|-------|-----------|------|
+| --- | --- | --- |
 | Fresh | Cache exists and age < 60s | `5h: ███░░ 60% (2h 15m)` and `7d: ██░░░ 40% (3d 12h)` |
 | Stale | Cache exists and age >= 60s | Same as Fresh (renders stale data, triggers background refresh) |
 | Unavailable | No cache exists | `5h: err` and `7d: err` (red), triggers background refresh |
@@ -123,7 +123,7 @@ Log format:
 ### Credentials Errors
 
 | Error | Cause | Behavior |
-|-------|-------|----------|
+| --- | --- | --- |
 | `KeychainFailed` | Keychain command returned non-zero | Log error, skip API fetch |
 | `EmptyResponse` | Keychain returned empty string | Log error, skip API fetch |
 | `InvalidUtf8` | Keychain output not valid UTF-8 | Log error, skip API fetch |
@@ -132,14 +132,14 @@ Log format:
 ### API Errors
 
 | Error | Cause | Behavior |
-|-------|-------|----------|
+| --- | --- | --- |
 | `Request` | Network failure or HTTP error | Log error, use stale cache if available |
 | `Parse` | Invalid JSON response | Log error, use stale cache if available |
 
 ### Cache Errors
 
 | Error | Cause | Behavior |
-|-------|-------|----------|
+| --- | --- | --- |
 | `Read` | Failed to read cache file | Treat as no cache |
 | `Parse` | Invalid cache JSON | Treat as no cache |
 | `Write` | Failed to write cache file | Log error, continue |
@@ -194,7 +194,7 @@ enum BackgroundEffect {
 #### Background Update
 
 | Message | Model Update | Effects |
-|---------|--------------|---------|
+| --- | --- | --- |
 | (init) | Empty model | `AcquireLock` |
 | `LockAcquired(Ok(()))` | — | `ReadKeychain` |
 | `LockAcquired(Err(LockHeld))` | — | `Exit` |

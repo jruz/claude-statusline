@@ -13,7 +13,7 @@ One-shot process invoked by Claude Code:
 ## Data Scope
 
 | Data | Source | Scope | Cached |
-|------|--------|-------|--------|
+| --- | --- | --- | --- |
 | context_window | stdin | Per-instance | No |
 | model | stdin | Per-instance | No |
 | plan | PLAN.md file | Per-instance | No |
@@ -231,7 +231,7 @@ Column widths using `unicode-width` for proper display width handling:
 ### Main Process
 
 | System | Effect | Message |
-|--------|--------|---------|
+| --- | --- | --- |
 | Claude Code | ReadStdin | StdinReceived |
 | PLAN.md file | ReadPlan | PlanLoaded |
 | Claude CLI | ReadVersion | VersionLoaded |
@@ -245,7 +245,7 @@ Column widths using `unicode-width` for proper display width handling:
 ### Background Process (Usage)
 
 | System | Effect | Message |
-|--------|--------|---------|
+| --- | --- | --- |
 | Lock file | AcquireLock | LockAcquired |
 | Lock file | ReleaseLock | — |
 | macOS Keychain | ReadKeychain | KeychainResult |
@@ -256,7 +256,7 @@ Column widths using `unicode-width` for proper display width handling:
 ### Background Process (Version)
 
 | System | Effect | Message |
-|--------|--------|---------|
+| --- | --- | --- |
 | Lock file | AcquireLock | LockAcquired |
 | Lock file | ReleaseLock | — |
 | npm registry | FetchLatestVersion | VersionFetched |
@@ -268,7 +268,7 @@ Column widths using `unicode-width` for proper display width handling:
 For testing, external dependencies can be overridden:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `ANTHROPIC_API_URL` | `https://api.anthropic.com` | API base URL |
 | `ANTHROPIC_API_KEY` | (none) | API key value |
 | `CLAUDE_STATUSLINE_CACHE_DIR` | `~/.cache/claude-statusline` | Cache directory |

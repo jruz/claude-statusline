@@ -40,7 +40,7 @@ enum Error {
 ## States
 
 | State | Condition | View |
-|-------|-----------|------|
+| --- | --- | --- |
 | Available | PLAN.md exists and has todos | `Plan: ████░░░░░░ 40%` |
 | No todos | PLAN.md exists but no checkboxes | `Plan: ██████████ 100%` |
 | File missing | PLAN.md not found | `Plan: err` (red) |

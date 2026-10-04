@@ -37,7 +37,7 @@ enum Error {
 ## States
 
 | State | Condition | View |
-|-------|-----------|------|
+| --- | --- | --- |
 | Available | `display_name` present in stdin | `Model: Opus 4.5` |
 | Unavailable | Field missing from stdin | `Model: err` (red) |
 

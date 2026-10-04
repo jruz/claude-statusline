@@ -23,7 +23,7 @@ pub fn render(percentage: f64, width: usize) -> String
 ### Examples
 
 | Input | Output |
-|-------|--------|
+| --- | --- |
 | `render(50.0, 10)` | `█████░░░░░` |
 | `render(0.0, 5)` | `░░░░░` |
 | `render(100.0, 5)` | `█████` |
@@ -57,7 +57,7 @@ pub fn format_remaining(target: chrono::DateTime<chrono::Utc>) -> String
 ### Examples
 
 | Time until target | Output |
-|-------------------|--------|
+| --- | --- |
 | 45 minutes | `45m` |
 | 2 hours 15 minutes | `2h 15m` |
 | 3 days 12 hours | `3d 12h` |
@@ -98,7 +98,7 @@ pub fn pad_right(text: &str, width: usize) -> String
 ### Examples
 
 | Input | Width | Output |
-|-------|-------|--------|
+| --- | --- | --- |
 | `"hello"` | 10 | `"hello     "` |
 | `"█████"` | 10 | `"█████     "` |
 | `"hello".red()` | 10 | `"\x1b[31mhello\x1b[0m     "` |

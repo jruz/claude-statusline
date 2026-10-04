@@ -95,7 +95,7 @@ struct CachedVersion {
 ## States
 
 | State | Condition | View |
-|-------|-----------|------|
+| --- | --- | --- |
 | Loading | `current` is `None` | `v...` |
 | Current only | `current` is `Some(Ok)`, `latest` is `None` | `v1.0.17` |
 | Up to date | `current` is `Some(Ok)`, `latest` is `Some(Ok)`, current >= latest | `v1.0.17` |
@@ -117,21 +117,21 @@ Errors logged to `~/.cache/claude-statusline/error.log`:
 ### Current Version Errors
 
 | Error | Cause | Behavior |
-|-------|-------|----------|
+| --- | --- | --- |
 | `CommandFailed` | `claude` command not found or failed | Show `v: err` in red |
 | `ParseFailed` | Output doesn't match expected format | Show `v: err` in red |
 
 ### Latest Version Errors
 
 | Error | Cause | Behavior |
-|-------|-------|----------|
+| --- | --- | --- |
 | `Request` | Network failure or HTTP error | Log error, use stale cache if available |
 | `Parse` | Invalid JSON response | Log error, use stale cache if available |
 
 ### Cache Errors
 
 | Error | Cause | Behavior |
-|-------|-------|----------|
+| --- | --- | --- |
 | `Read` | Failed to read cache file | Treat as no cache |
 | `Parse` | Invalid cache JSON | Treat as no cache |
 | `Write` | Failed to write cache file | Log error, continue |
@@ -181,7 +181,7 @@ enum BackgroundEffect {
 #### Background Update
 
 | Message | Model Update | Effects |
-|---------|--------------|---------|
+| --- | --- | --- |
 | (init) | Empty model | `AcquireLock` |
 | `LockAcquired(Ok(()))` | — | `FetchLatestVersion` |
 | `LockAcquired(Err(LockHeld))` | — | `Exit` |
@@ -230,7 +230,7 @@ Uses semantic versioning comparison:
 Examples:
 
 | Current | Latest | Result |
-|---------|--------|--------|
+| --- | --- | --- |
 | `1.0.17` | `1.0.18` | Update available |
 | `1.0.17` | `1.0.17` | Current |
 | `1.0.18` | `1.0.17` | Current (running newer) |

@@ -56,7 +56,7 @@ enum Error {
 ## States
 
 | State | Condition | View |
-|-------|-----------|------|
+| --- | --- | --- |
 | Loading | Effect not yet executed (`None`) | `Context: ...` |
 | Available | `context_window_size` present (`Some(Ok(...))`) | `Context: ━━━━━━━━━━  15% (152k)` |
 | Unavailable | Read, parse, or missing field (`Some(Err(...))`) | `Context: err` (red) |
@@ -84,7 +84,7 @@ Data arrives via `StdinReceived` message. No caching or background refresh neede
 - Tokens formatting:
 
 | Tokens | Format |
-|--------|--------|
+| --- | --- |
 | < 1,000 | `850` |
 | < 1,000,000 | `152k` |
 | ≥ 1,000,000 | `1m` |
@@ -94,7 +94,7 @@ Data arrives via `StdinReceived` message. No caching or background refresh neede
 Bar color based on percentage. Text uses default color.
 
 | Range | Color |
-|-------|-------|
+| --- | --- |
 | 0-49% | Green |
 | 50-69% | Orange |
 | 70%+ | Red |

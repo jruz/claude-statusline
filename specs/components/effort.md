@@ -27,7 +27,7 @@ Values: `low`, `medium`, `high`, `xhigh`, `max`. The `effort` field is absent wh
 ## States
 
 | State | Condition | View |
-|-------|-----------|------|
+| --- | --- | --- |
 | Available | `effort.level` present in stdin | `Thinking: high` |
 | Unsupported | `effort` missing from stdin | `Thinking: n/a` (dimmed) |
 | Error | stdin unreadable or invalid JSON | `Thinking: err` (red) |
