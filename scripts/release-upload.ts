@@ -1,4 +1,4 @@
-import { log } from "./log";
+import { log } from "./lib/log.ts";
 import { Glob } from "bun";
 
 const parseId = (data: unknown): number => {
@@ -9,9 +9,52 @@ const parseId = (data: unknown): number => {
   return id;
 };
 
+const parseNames = (data: unknown): string[] => {
+  if (!Array.isArray(data)) throw new Error("assets is not an array");
+  return data.map((asset: unknown) => {
+    if (typeof asset !== "object" || asset === null || !("name" in asset))
+      throw new Error("missing name in asset");
+    const { name } = asset;
+    if (typeof name !== "string") throw new Error("name is not a string");
+    return name;
+  });
+};
+
 const headers = (token: string) => ({
   Authorization: `token ${token}`,
 });
+
+const MAX_ATTEMPTS = 5;
+const BASE_DELAY_MS = 2000;
+
+const isJson = (res: Response): boolean =>
+  res.headers.get("content-type")?.includes("application/json") === true;
+
+const isRetryable = (res: Response): boolean =>
+  res.status >= 500 || res.status === 429 || (!res.ok && !isJson(res));
+
+const backoff = (attempt: number): number =>
+  BASE_DELAY_MS * 2 ** (attempt - 1) + Math.random() * 1000;
+
+const fetchWithRetry = async (
+  url: string,
+  init: RequestInit,
+  attempt = 1,
+): Promise<Response> => {
+  try {
+    const res = await fetch(url, init);
+    if (!isRetryable(res) || attempt === MAX_ATTEMPTS) return res;
+    const text = await res.text();
+    log.warn(`${url}: ${res.status} ${text.slice(0, 200)}`);
+  } catch (error) {
+    if (attempt === MAX_ATTEMPTS) throw error;
+    log.warn(`${url}: ${String(error)}`);
+  }
+  const delay = backoff(attempt);
+  log.warn(`retry ${attempt}/${MAX_ATTEMPTS - 1} in ${Math.round(delay)}ms`);
+  await Bun.sleep(delay);
+  return fetchWithRetry(url, init, attempt + 1);
+};
 
 const ensureRelease = async (
   tag: string,
@@ -19,7 +62,7 @@ const ensureRelease = async (
   repo: string,
 ): Promise<number> => {
   const url = `https://codeberg.org/api/v1/repos/${repo}/releases/tags/${tag}`;
-  const res = await fetch(url, { headers: headers(token) });
+  const res = await fetchWithRetry(url, { headers: headers(token) });
 
   if (res.ok) {
     const data: unknown = await res.json();
@@ -34,7 +77,7 @@ const ensureRelease = async (
   }
 
   log.info(`creating release ${tag}...`);
-  const createRes = await fetch(
+  const createRes = await fetchWithRetry(
     `https://codeberg.org/api/v1/repos/${repo}/releases`,
     {
       method: "POST",
@@ -54,6 +97,23 @@ const ensureRelease = async (
   return id;
 };
 
+const existingAssets = async (
+  releaseId: number,
+  token: string,
+  repo: string,
+): Promise<string[]> => {
+  const url = `https://codeberg.org/api/v1/repos/${repo}/releases/${releaseId}/assets`;
+  const res = await fetchWithRetry(url, { headers: headers(token) });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`list assets: ${res.status} ${text}`);
+  }
+
+  const data: unknown = await res.json();
+  return parseNames(data);
+};
+
 const upload = async (
   file: string,
   releaseId: number,
@@ -63,7 +123,7 @@ const upload = async (
   const url = `https://codeberg.org/api/v1/repos/${repo}/releases/${releaseId}/assets?name=${file}`;
   const body = await Bun.file(file).arrayBuffer();
 
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method: "POST",
     headers: { ...headers(token), "Content-Type": "application/octet-stream" },
     body,
@@ -105,15 +165,31 @@ const main = async () => {
   }
 
   const releaseId = await ensureRelease(tag, token, repo);
+  const uploaded = await existingAssets(releaseId, token, repo);
+  const pending = files.filter((file) => !uploaded.includes(file));
 
-  const uploads = files.map(async (file) => {
+  if (pending.length < files.length)
+    log.info(`skipping ${files.length - pending.length} already uploaded`);
+
+  const uploadLogged = async (file: string): Promise<void> => {
     log.info(`uploading ${file}...`);
     await upload(file, releaseId, token, repo);
     log.info(`uploaded ${file}`);
-  });
-  await Promise.all(uploads);
+  };
+
+  const start = Promise.resolve();
+  await pending.reduce(
+    (previous, file) => previous.then(() => uploadLogged(file)),
+    start,
+  );
 
   log.info("release upload complete");
 };
 
-await main();
+try {
+  await main();
+} catch (error: unknown) {
+  const message = String(error);
+  log.error(message);
+  process.exitCode = 1;
+}

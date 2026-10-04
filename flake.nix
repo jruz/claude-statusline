@@ -86,6 +86,7 @@
             clj-kondo
             deadnix
             fd
+            git
             just
             markdownlint-cli2
             nixfmt

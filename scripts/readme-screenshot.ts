@@ -1,7 +1,7 @@
 import { chmod, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { log } from "./log";
+import { log } from "./lib/log.ts";
 
 const CURRENT_VERSION = "2.1.280";
 const LATEST_VERSION = "2.1.285";

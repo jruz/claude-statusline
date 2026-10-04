@@ -5,7 +5,14 @@ install:
         --locked \
         --force \
         --root target/dist
-    cp target/dist/bin/* ~/.cargo/bin/
+    install \
+        --directory \
+        --mode=755 \
+        "$HOME/.cargo/bin"
+    install \
+        --mode=755 \
+        target/dist/bin/* \
+        "$HOME/.cargo/bin"
 
 rust-build:
     sandbox cargo build --all-targets
@@ -85,15 +92,17 @@ toml-fix:
         --extension toml \
         --exec taplo format
 
+[working-directory: 'scripts']
 nu-check:
     #!/usr/bin/env nu
     (^fd --absolute-path --extension nu
         --exec nu --commands 'nu-check --debug {}')
-    ^nu-lint --config nu-lint.toml
+    ^nu-lint --config ../nu-lint.toml
 
+[working-directory: 'scripts']
 nu-fix:
     nu-lint \
-        --config nu-lint.toml \
+        --config ../nu-lint.toml \
         --fix
 
 clj-check:
@@ -145,8 +154,11 @@ fix:
 test:
     just rust-test
 
-release-build OS ARCH:
-    sandbox nu scripts/release-build.nu {{ OS }} {{ ARCH }}
+release-build TARGET:
+    nu scripts/release-build.nu {{ TARGET }}
+
+release-build-all:
+    nu scripts/release-build.nu all
 
 release-bump VERSION:
     nu scripts/release-bump.nu {{ VERSION }}
@@ -155,6 +167,7 @@ release-upload TAG:
     sandbox bun scripts/release-upload.ts {{ TAG }}
 
 release-delete TAG:
+    git tag --delete {{ TAG }}
     sandbox bun scripts/release-delete.ts {{ TAG }}
 
 worktree-add NAME:

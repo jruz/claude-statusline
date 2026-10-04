@@ -32,9 +32,10 @@ Current version from `claude --version`. Latest version fetched from `https://re
 - `just test`: Run Rust tests
 - `just demo`: Run with sample data (builds debug binary, uses real cache/version)
 - `--debug`: Log raw stdin payload to `~/.cache/claude-statusline/error.log`
-- `just build-linux`: Release build for Linux x86_64
-- `just build-macos`: Release build for macOS x86_64 + ARM64
+- `just release-build <target>`: Build one target triple from `scripts/release-build.nu` using persistent Podman caches
+- `just release-build-all`: Build all release targets
 - `just release-upload <tag>`: Upload binaries to Codeberg release
+- `just release-delete <tag>`: Delete local tag, remote tag and Codeberg release
 - `just worktree-add <name>`: Create a new worktree with branch `<name>` at `../<name>`
 - `just worktree-remove <name>`: Remove worktree and delete branch `<name>`
 - `just readme-screenshot`: Regenerate `screenshot.png` for the README

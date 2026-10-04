@@ -1,4 +1,4 @@
-import { log } from "./log";
+import { log } from "./lib/log.ts";
 
 const parseId = (data: unknown): number => {
   if (typeof data !== "object" || data === null || !("id" in data))
@@ -26,17 +26,6 @@ const repoFromRemote = async (): Promise<string> => {
   if (!match?.[1])
     throw new Error(`cannot parse repo from remote: ${result.stdout}`);
   return match[1];
-};
-
-const deleteLocalTag = async (tag: string): Promise<void> => {
-  const list = await run(["git", "tag", "--list", tag]);
-  if (list.stdout === "") {
-    log.info(`local tag ${tag} not found, skipping`);
-    return;
-  }
-  const result = await run(["git", "tag", "--delete", tag]);
-  if (!result.ok) throw new Error(`git tag --delete ${tag} failed`);
-  log.info(`deleted local tag ${tag}`);
 };
 
 const deleteRemoteTag = async (
@@ -120,9 +109,6 @@ const main = async () => {
 
   const repo = await repoFromRemote();
 
-  await deleteLocalTag(tag);
-  await deleteRemoteTag(tag, token, repo);
-
   const releaseId = await findRelease(tag, token, repo);
   if (releaseId === null) {
     log.info(`no release found for ${tag}`);
@@ -130,6 +116,14 @@ const main = async () => {
     await deleteRelease(releaseId, token, repo);
     log.info(`deleted release ${tag} (id: ${releaseId})`);
   }
+
+  await deleteRemoteTag(tag, token, repo);
 };
 
-await main();
+try {
+  await main();
+} catch (error: unknown) {
+  const message = String(error);
+  log.error(message);
+  process.exitCode = 1;
+}
