@@ -42,7 +42,7 @@ Add to `~/.claude/settings.json`:
 
 ## Components
 
-- **Context**: Current context window usage percentage
+- **Context**: Context window usage percentage and tokens used
 - **Model**: Active Claude model name
 - **Version**: Claude Code version with update indicator
 - **PLAN.md**: Progress on tasks in PLAN.md
@@ -54,7 +54,7 @@ Add to `~/.claude/settings.json`:
 
 | Component | Source |
 |-----------|--------|
-| Context | `context_window.current_usage` (input + cache tokens) from stdin JSON |
+| Context | `context_window.current_usage` (input + cache tokens) and `context_window.context_window_size` from stdin JSON |
 | Model | `model.display_name` from stdin JSON |
 | Version | `claude --version` + npm registry for update check |
 | PLAN.md | Counts `- [x]` and `- [ ]` checkboxes in `./PLAN.md` |

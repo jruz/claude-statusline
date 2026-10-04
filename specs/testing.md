@@ -16,9 +16,9 @@ Tests at `tests/integration.rs` using `assert_cmd` crate.
 
 | Test | Stdin | Expected |
 |------|-------|----------|
-| Percentage display | `{"context_window":{"used_percentage":42.5}}` | `Context: ... 42%` |
-| Missing field | `{}` | `Context: ... 0%` |
-| Model-only JSON | `{"model":{"display_name":"X"}}` | `Context: ... 0%` |
+| Percentage and tokens | `{"context_window":{"context_window_size":200000,"current_usage":{"input_tokens":84000}}}` | `Context: ...  42% (84k)` |
+| Missing context_window | `{}` | `Context: err` |
+| Missing window size | `{"context_window":{"current_usage":{"input_tokens":1}}}` | `Context: err` |
 | Invalid JSON | `not json` | `Context: err` |
 
 #### Model Component
