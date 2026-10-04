@@ -28,7 +28,8 @@ Current version from `claude --version`. Latest version fetched from `https://re
 
 ## Commands
 
-- `just check`: Lint + test
+- `just check`: Run lint and format checks
+- `just test`: Run Rust tests
 - `just demo`: Run with sample data (builds debug binary, uses real cache/version)
 - `--debug`: Log raw stdin payload to `~/.cache/claude-statusline/error.log`
 - `just build-linux`: Release build for Linux x86_64
