@@ -30,6 +30,7 @@
           pkgs.cargo-nextest
           pkgs.cargo-outdated
           pkgs.cargo-watch
+          pkgs.charm-freeze
           pkgs.coreutils
           pkgs.findutils
           pkgs.git

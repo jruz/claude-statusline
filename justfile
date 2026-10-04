@@ -169,3 +169,7 @@ demo:
     (open tests/fixtures/demo_stdin.json
         | to json --raw
         | ^./target/debug/claude-statusline)
+
+readme-screenshot:
+    just rust-build
+    sandbox bun scripts/readme-screenshot.ts

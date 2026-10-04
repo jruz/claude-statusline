@@ -35,6 +35,11 @@ Current version from `claude --version`. Latest version fetched from `https://re
 - `just release-upload <tag>`: Upload binaries to Codeberg release
 - `just worktree-add <name>`: Create a new worktree with branch `<name>` at `../<name>`
 - `just worktree-remove <name>`: Remove worktree and delete branch `<name>`
+- `just readme-screenshot`: Regenerate `screenshot.png` for the README
+
+## UI Changes
+
+When a change affects rendered output, run `just readme-screenshot`.
 
 ## Codeberg Settings
 
