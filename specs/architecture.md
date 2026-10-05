@@ -7,7 +7,7 @@ One-shot process invoked by Claude Code:
 - Called on every conversation message update
 - At most every 300ms
 - Receives JSON via stdin
-- Outputs two-line status to stdout
+- Outputs three-line status to stdout
 - Must return fast (render from cache, refresh in background)
 
 ## Data Scope
@@ -16,6 +16,7 @@ One-shot process invoked by Claude Code:
 | --- | --- | --- | --- |
 | context_window | stdin | Per-instance | No |
 | model | stdin | Per-instance | No |
+| effort | stdin | Per-instance | No |
 | plan | PLAN.md file | Per-instance | No |
 | usage | API | Shared (all instances) | Yes (60s TTL) |
 | version | CLI + npm API | Shared (all instances) | Yes (1h TTL) |
@@ -28,56 +29,32 @@ Each component's data is wrapped in `Option<Result<T, Error>>`. `None` means not
 
 ```rust
 Model {
-    context: Option<Result<f64, context::Error>>,
-    claude: Option<Result<String, claude::Error>>,
-    plan: Option<Result<Progress, plan::Error>>,
-    usage: Option<Result<Usage, usage::Error>>,
-    version: Version,
-}
-
-Progress {
-    completed: usize,
-    total: usize,
-}
-
-Usage {
-    five_hour: Window,
-    seven_day: Window,
-}
-
-Window {
-    utilization: f64,
-    resets_at: DateTime<Utc>,
-}
-
-Version {
-    current: Option<Result<String, version::CurrentError>>,
-    latest: Option<Result<String, version::LatestError>>,
+    channel: version::Channel,
+    claude: Option<Result<String, claude_model::Error>>,
+    compact_window: Result<Option<NonZeroU64>, env::Error>,
+    context: Option<Result<context::Context, context::Error>>,
+    effort: Option<Result<Option<String>, effort::Error>>,
+    plan: Option<Result<plan::Progress, plan::Error>>,
+    usage: Option<Result<usage::Usage, usage::Error>>,
+    version: Option<version::Version>,
 }
 ```
 
-Cache structure (separate from model):
-
-```rust
-CachedUsage {
-    fetched_at: DateTime
-    response: Response { five_hour: Window, seven_day: Window }
-}
-```
+Component types are defined in each component spec.
 
 ## Init
 
-Returns the initial model and startup effects.
+`init(channel, compact_window)` returns the initial model and startup effects.
+
+- `channel` comes from `--channel`, `stable` when omitted
+- `compact_window` comes from `CLAUDE_CODE_AUTO_COMPACT_WINDOW`
+- All component fields start as `None`
+
+Startup effects:
 
 ```rust
-fn init() -> (Model, Vec<Effect>) {
-    let model = Model { context: None };
-    let effects = vec![Effect::ReadStdin];
-    (model, effects)
-}
+[ReadStdin, ReadFile { path: "PLAN.md" }, ReadUsageCache, ReadVersion, ReadVersionCache]
 ```
-
-All component fields start as `None` until populated by messages.
 
 ## Messages
 
@@ -85,29 +62,26 @@ All data enters the system as messages. No direct mutations. Errors are carried 
 
 ```rust
 Msg {
-    StdinReceived(Result<String, io::Error>),
+    CacheLoaded(Result<String, io::Error>),
     PlanLoaded(Result<String, io::Error>),
-    CacheLoaded(Result<CachedUsage, cache::Error>),
-    VersionLoaded(Result<String, version::CurrentError>),
-    VersionCacheLoaded(Result<CachedVersion, cache::Error>),
+    StdinReceived(Result<String, io::Error>),
+    VersionCacheLoaded(Result<String, io::Error>),
+    VersionLoaded(Result<String, io::Error>),
 }
 ```
 
 ## Update
 
 ```
-Msg                              → Model Update                      → Effects
-─────────────────────────────────────────────────────────────────────────────────
-StdinReceived(Ok(json))          → Parse and set context/model       → None
-StdinReceived(Err(e))            → Set context/model to Err          → LogError
-PlanLoaded(Ok(content))          → Parse checkboxes, set plan        → None
-PlanLoaded(Err(e))               → Set plan to Err                   → LogError
-CacheLoaded(Ok(cached))          → Set usage from cached.response    → if stale: SpawnBackgroundRefresh
-CacheLoaded(Err(e))              → Set usage to Err                  → SpawnBackgroundRefresh, LogError
-VersionLoaded(Ok(version))       → Set version.current               → None
-VersionLoaded(Err(e))            → Set version.current to Err        → LogError
-VersionCacheLoaded(Ok(cached))   → Set version.latest from cached    → if stale: SpawnVersionRefresh
-VersionCacheLoaded(Err(e))       → Set version.latest to None        → SpawnVersionRefresh, LogError
+Msg                              → Model Update                        → Effects
+───────────────────────────────────────────────────────────────────────────────────────
+StdinReceived(result)            → Parse context, claude, effort       → LogError per failed parse
+PlanLoaded(result)               → Parse checkboxes, set plan          → LogError if failed
+CacheLoaded(Ok(content))         → Parse usage cache                   → if stale or invalid: SpawnBackgroundRefresh
+CacheLoaded(Err(e))              → Set usage to Err                    → SpawnBackgroundRefresh, LogError unless not found
+VersionLoaded(result)            → Set version.current                 → LogError if failed
+VersionCacheLoaded(Ok(content))  → Set version.latest                  → if stale or invalid: SpawnVersionRefresh
+VersionCacheLoaded(Err(e))       → Leave version.latest None           → SpawnVersionRefresh, LogError unless not found
 ```
 
 ## Effects
@@ -115,283 +89,139 @@ VersionCacheLoaded(Err(e))       → Set version.latest to None        → Spawn
 ```rust
 Effect {
     LogError { module: String, error: String },
+    ReadFile { path: PathBuf },
     ReadStdin,
-    ReadPlan,
+    ReadUsageCache,
     ReadVersion,
-    LoadCache,
-    LoadVersionCache,
+    ReadVersionCache,
     SpawnBackgroundRefresh,
-    SpawnVersionRefresh,
+    SpawnVersionRefresh { channel: version::Channel },
 }
 ```
 
-`execute` returns `Option<Msg>`. Effects that produce messages return `Some(Msg)`, fire-and-forget effects like `LogError` return `None`.
+`execute` returns `Option<Msg>`. Effects that produce messages return `Some(Msg)`, fire-and-forget effects like `LogError` and spawns return `None`.
 
 ## Main Flow
 
 ```
-1. Call init()             → (model, [ReadStdin, ReadPlan, ReadVersion, LoadCache, LoadVersionCache])
-2. Execute init effects    → [StdinReceived(..), PlanLoaded(..), VersionLoaded(..), CacheLoaded(..), VersionCacheLoaded(..)]
-3. Update model from messages, collect effects
+1. init(channel, compact_window)  → (model, startup effects)
+2. Pop and execute effects until the stack is empty
+3. Feed each returned Msg to update, push its effects onto the stack
 4. Render model to stdout
-5. Execute update effects (SpawnBackgroundRefresh/SpawnVersionRefresh if needed, LogError if any)
-6. Exit
+5. Exit
 ```
+
+Spawn effects run during step 2, before rendering.
 
 ## Background Refresh Flow
 
-The background process follows TEA with its own model, messages, and effects.
+The same binary runs in refresh mode:
 
-### Background Model
+| Argument | Function | Spec |
+| --- | --- | --- |
+| `--refresh-usage` | `run_background_refresh` | [usage](components/usage.md) |
+| `--refresh-version --channel <channel>` | `run_version_refresh` | [version](components/version.md) |
 
-```rust
-struct BackgroundModel {
-    api_key: Option<String>,
-    response: Option<Response>,
-}
-```
-
-### Background Messages
-
-```rust
-enum BackgroundMsg {
-    LockAcquired(Result<(), cache::Error>),
-    KeychainResult(Result<String, credentials::Error>),
-    UsageFetched(Result<Response, api::Error>),
-    CacheSaved(Result<(), cache::Error>),
-}
-```
-
-### Background Effects
-
-```rust
-enum BackgroundEffect {
-    AcquireLock,
-    ReadKeychain,
-    FetchUsage(String),
-    SaveCache(Response),
-    ReleaseLock,
-    LogError(Error),
-    Exit,
-}
-```
-
-### Background Update
-
-```
-Msg                                → Model Update         → Effects
-──────────────────────────────────────────────────────────────────────────────
-(init)                             → Empty model          → AcquireLock
-LockAcquired(Ok(()))               → —                    → ReadKeychain
-LockAcquired(Err(LockHeld))        → —                    → Exit
-KeychainResult(Ok(key))            → Store api_key        → FetchUsage(key)
-KeychainResult(Err(e))             → —                    → LogError, ReleaseLock, Exit
-UsageFetched(Ok(response))         → Store response       → SaveCache(response)
-UsageFetched(Err(e))               → —                    → LogError, ReleaseLock, Exit
-CacheSaved(Ok(()))                 → —                    → ReleaseLock, Exit
-CacheSaved(Err(e))                 → —                    → LogError, ReleaseLock, Exit
-```
+Both run sequentially: acquire lock, fetch, write cache, release lock. Errors are logged and release the lock.
 
 ### Next Invocation
 
-Within 300ms, the next main process invocation reads fresh cache data via `CacheLoaded` message.
+The next main process invocation reads the fresh cache via `CacheLoaded` and `VersionCacheLoaded`.
 
 ## View
 
-Two-line output with optional error line:
-
-```
-Render(model) ──▶ stdout
-
-Line 1: Context: ████░░░░░░ 42%    Model: Opus 4.5    5h: ███░░ 60% (2h 15m)
-Line 2: Plan: ████░░░░░░ 40% (12 left)  v1.0.17      7d: ██░░░ 40% (3d 12h)
-Line 3: Errors(N): {last error}                      (only if errors > 0)
-```
-
-Failed components show `err` in red. Version fails silently (shows current version only).
-
-## Grid
-
-Two-line layout with fixed-width columns:
+Three-line output followed by a zero-width space line:
 
 ```
 Line 1: {context}              {model}              {5h usage}
-Line 2: {plan}                 {version}            {7d usage}
-Line 3: Errors(N): {last error}                     (only if errors > 0)
+Line 2: {plan}                 {effort}             {7d usage}
+Line 3: {version}
 ```
 
 Column widths using `unicode-width` for proper display width handling:
 
-- Column 1: 25 chars (Context, Plan)
-- Column 2: 20 chars (Model, Version)
-- Column 3: 30 chars (5h, 7d)
+- Column 1: 35 chars (Context, Plan)
+- Column 2: 22 chars (Model, Thinking)
+- Column 3: unpadded (5h, 7d)
 
 ## Boundaries
-
-### Main Process
 
 | System | Effect | Message |
 | --- | --- | --- |
 | Claude Code | ReadStdin | StdinReceived |
-| PLAN.md file | ReadPlan | PlanLoaded |
+| PLAN.md file | ReadFile | PlanLoaded |
 | Claude CLI | ReadVersion | VersionLoaded |
-| Cache file (usage) | LoadCache | CacheLoaded |
-| Cache file (version) | LoadVersionCache | VersionCacheLoaded |
-| Terminal | Render | — |
+| Cache file (usage) | ReadUsageCache | CacheLoaded |
+| Cache file (version) | ReadVersionCache | VersionCacheLoaded |
 | Log file | LogError | — |
 | Background (usage) | SpawnBackgroundRefresh | — |
 | Background (version) | SpawnVersionRefresh | — |
 
-### Background Process (Usage)
-
-| System | Effect | Message |
-| --- | --- | --- |
-| Lock file | AcquireLock | LockAcquired |
-| Lock file | ReleaseLock | — |
-| macOS Keychain | ReadKeychain | KeychainResult |
-| Anthropic API | FetchUsage | UsageFetched |
-| Cache file | SaveCache | CacheSaved |
-| Log file | LogError | — |
-
-### Background Process (Version)
-
-| System | Effect | Message |
-| --- | --- | --- |
-| Lock file | AcquireLock | LockAcquired |
-| Lock file | ReleaseLock | — |
-| npm registry | FetchLatestVersion | VersionFetched |
-| Cache file | SaveCache | CacheSaved |
-| Log file | LogError | — |
-
 ## Environment Variables
 
-For testing, external dependencies can be overridden:
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `ANTHROPIC_API_URL` | `https://api.anthropic.com` | API base URL |
-| `ANTHROPIC_API_KEY` | (none) | API key value |
-| `CLAUDE_STATUSLINE_CACHE_DIR` | `~/.cache/claude-statusline` | Cache directory |
-| `CLAUDE_STATUSLINE_SKIP_KEYCHAIN` | `false` | Skip keychain, use `ANTHROPIC_API_KEY` |
-
-Credential resolution:
-
-1. If `CLAUDE_STATUSLINE_SKIP_KEYCHAIN=true`, use `ANTHROPIC_API_KEY` env var
-2. Otherwise, read from macOS Keychain
+| Variable | Description |
+| --- | --- |
+| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | Caps the context window, see [context](components/context.md) |
 
 ## File Structure
 
 ```
 src/
-├── main.rs          # TEA runtime: Effect, Model, Msg, init, update, execute
+├── main.rs          # Entry point, argument dispatch, background refresh
+├── model.rs         # Model, init, update
+├── effect.rs        # Effect, Msg, execute
 ├── view.rs          # Top-level render
+├── env.rs           # Environment variable parsing
+├── version.rs       # --version output
 │
 ├── shared/
 │   ├── mod.rs
+│   ├── grid.rs          # Column padding
 │   ├── logging.rs       # log_error
-│   └── progress_bar.rs  # progress_bar
+│   └── progress_bar.rs  # Progress bar rendering
 │
 └── components/
     ├── mod.rs
-    ├── context.rs       # Context window component
     ├── claude_model.rs  # Model name component
+    ├── context.rs       # Context window component
+    ├── effort.rs        # Thinking level component
     ├── plan.rs          # PLAN.md progress component
     ├── usage.rs         # API rate limit component
-    └── version.rs       # Version display component
+    └── version.rs       # Claude Code version component
 ```
 
-### Components
-
-Self-contained units. Each component has its own error enum, parse function, and render function.
-
-### Shared
-
-`shared/` contains utilities used across components:
-
-- `logging` - error logging to file
-- `progress_bar` - progress bar rendering
+Components are self-contained: each has its own error enum, parse function, and render function.
 
 ## Cache
 
-### Usage Cache
+| Cache | Location | TTL | Lock |
+| --- | --- | --- | --- |
+| Usage | `~/.cache/claude-statusline/usage.json` | 60s | `usage.lock` |
+| Version | `~/.cache/claude-statusline/version.json` | 1h | `version.lock` |
 
-- Location: `~/.cache/claude-statusline/usage.json`
-- TTL: 60 seconds
-- Stale cache used for render while background refreshes
-- Lock file prevents concurrent refresh: `~/.cache/claude-statusline/usage.lock`
-
-### Version Cache
-
-- Location: `~/.cache/claude-statusline/version.json`
-- TTL: 1 hour (3600 seconds)
-- Stale cache used for render while background refreshes
-- Lock file prevents concurrent refresh: `~/.cache/claude-statusline/version.lock`
+Stale cache is rendered while the background refreshes. Locks are treated as stale after 300s.
 
 ## Error Handling
 
-### Principles
-
-- Application never crashes
-- Always output something to stdout
-- Always exit 0
 - Modules are independent: one failure doesn't affect others
+- Failed components render instead of crashing
+- Invalid `--channel` exits with an error
 
-### Module Errors
+Rendering by state:
 
-Each module defines its own error enum:
-
-```rust
-mod input {
-    enum Error { ReadStdin(io::Error), ParseJson(serde_json::Error) }
-}
-
-mod cache {
-    enum Error { Read(io::Error), Write(io::Error), Parse(serde_json::Error) }
-}
-
-mod credentials {
-    enum Error { KeychainRead(io::Error), Parse(serde_json::Error) }
-}
-
-mod usage {
-    enum Error { Request(reqwest::Error), Parse(serde_json::Error) }
-}
-```
-
-### Error Propagation
-
-```
-Data Source → Option<Result<T, Error>> → Model field → View renders loading, success, or error
-```
-
-Each component's model holds `Option<Result<T, Error>>`. View pattern matches to render:
-
-- `None` → `...` (loading)
+- `None` → `...`
 - `Some(Ok(value))` → normal display
 - `Some(Err(_))` → `err` in red
-
-Errors are collected and logged. If any errors occurred, third line shows error count and last error message.
-
-### View with Errors
-
-```
-Context: ████░░░░░░ 42%    Model: Opus 4.5    5h: err
-Plan: err                       v1.0.17      7d: ██░░░ 40% (3d 12h)
-Errors(2): API request failed
-```
-
-- Failed component shows `err` in red
 - Version update check fails silently (shows current version only)
-- Third line shows error count and last error message (only if errors > 0)
 
 ### Logging
 
 - Location: `~/.cache/claude-statusline/error.log`
-- Format: `{timestamp} [{module}] {error}: {source}`
+- Format: `{local timestamp} [{module}] {error}`
 - Append-only
 
 Example:
 
 ```
-2026-01-25T12:30:45Z [credentials] Failed to read credentials from keychain: No password found
+2026-01-25T12:30:45+01:00 [usage] credentials: keychain failed: No password found
 ```

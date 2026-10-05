@@ -123,7 +123,7 @@ A failed background refresh leaves the cache untouched, so the last successful r
 All errors are logged to `~/.cache/claude-statusline/error.log` with module `usage`:
 
 ```
-2026-01-25T12:30:45Z [usage] api: request failed: connection refused
+2026-01-25T12:30:45+01:00 [usage] api: request failed: connection refused
 ```
 
 ### Main Process

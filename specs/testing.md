@@ -1,64 +1,39 @@
 # Testing
 
-Integration tests verify parsing and rendering by piping JSON through stdin.
-
-## Test Environment
-
-Tests run in isolated temp directories when testing file-based features (PLAN.md).
-
 ## Integration Tests
 
-Tests at `tests/integration.rs` using `assert_cmd` crate.
+`tests/integration.rs` runs the binary with `assert_cmd`, pipes JSON through stdin, and asserts on stdout.
 
-### Test Cases
+- Each test unsets `CLAUDE_CODE_AUTO_COMPACT_WINDOW` so the host environment does not leak in
+- Tests that need it set the variable explicitly
+- PLAN.md tests run in isolated temp directories
 
-#### Context Component
+### Coverage
 
-| Test | Stdin | Expected |
-| --- | --- | --- |
-| Percentage and tokens | `{"context_window":{"context_window_size":200000,"current_usage":{"input_tokens":84000}}}` | `Context: ...  42% (84k)` |
-| Missing context_window | `{}` | `Context: err` |
-| Missing window size | `{"context_window":{"current_usage":{"input_tokens":1}}}` | `Context: err` |
-| Invalid JSON | `not json` | `Context: err` |
+| Area | Cases |
+| --- | --- |
+| Context | Percentage and token formatting, rounding, clamping, color thresholds, null usage, output tokens ignored, missing fields, invalid JSON |
+| Context window | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` applied, capped to model window, invalid value shows `err` |
+| Model | Display name, missing field shows `err` |
+| Effort | Level rendered as `Thinking:`, missing field shows `n/a` |
+| Plan | Checkbox progress, no checkboxes is 100%, missing file shows `file-not-found` |
+| Usage | Labels render without cache |
+| Full output | Three lines: Context, Model, 5h / PLAN.md, Thinking, 7d / Version |
 
-#### Model Component
+## Unit Tests
 
-| Test | Stdin | Expected |
-| --- | --- | --- |
-| Display name | `{"model":{"display_name":"Opus 4.5"}}` | `Model: Opus 4.5` |
-| Missing field | `{}` | `Model: err` |
+Inline `#[cfg(test)]` modules cover logic not reachable through stdin:
 
-#### Plan Component
+- `components/usage.rs`: reset time formatting, cache parsing, API fixture parsing, lock staleness
+- `components/version.rs`: version parsing, comparison, rendering states
+- `shared/grid.rs`: padding, truncation, unicode width
 
-| Test | Condition | Expected |
-| --- | --- | --- |
-| With checkboxes | PLAN.md has `- [x]` and `- [ ]` | `PLAN.md: ... N%` |
-| No checkboxes | PLAN.md exists, no checkboxes | `PLAN.md: ... 100%` |
-| File missing | No PLAN.md | `PLAN.md: file-not-found` |
+## Fixtures
 
-#### Usage Component
-
-| Test | Condition | Expected |
-| --- | --- | --- |
-| No cache | Cache file missing | Shows `5h:` and `7d:` labels |
-
-#### Full Output
-
-| Test | Condition | Expected |
-| --- | --- | --- |
-| Two lines | Valid input | Line 1: Context, Model, 5h / Line 2: PLAN.md, 7d |
+`tests/fixtures/` holds sample stdin, PLAN.md, and API response data.
 
 ## Running Tests
 
 ```bash
 just test
-# or
-cargo nextest run
-```
-
-## File Structure
-
-```
-tests/
-└── integration.rs    # Rust integration tests
 ```
