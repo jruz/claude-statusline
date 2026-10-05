@@ -5,8 +5,8 @@ A status line renderer for Claude Code that displays context usage, model info, 
 ## Mockup
 
 ```
-Context: ━━━━━━━━━━  15% (152k)    Model: Opus 4.6 1M    5h: ━━━━━━━━━━  28% (2h 19m)
-PLAN.md: ━━━━━━━━━━  60%           Thinking: high        7d: ━━━━━━━━━━   4% (2d 5h)
+Context: ━━━━━━━━━━  15% (152k)    Model: Opus 4.6 1M    5h: ━━━━━━━━━━  72% (2h 19m)
+PLAN.md: ━━━━━━━━━━  60%           Thinking: high        7d: ━━━━━━━━━━  96% (2d 5h)
 Version: 2.1.280
 ```
 

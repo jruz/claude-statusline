@@ -1,10 +1,14 @@
 use chrono::{DateTime, Utc};
+use num_traits::ToPrimitive as _;
 use owo_colors::OwoColorize as _;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::shared::logging;
 use crate::shared::progress_bar;
+
+const THRESHOLD_RED: u8 = 20;
+const THRESHOLD_YELLOW: u8 = 40;
 
 #[derive(Debug, Clone)]
 pub struct Usage {
@@ -25,6 +29,9 @@ pub enum Error {
 
     #[error("cache read: {0}")]
     CacheRead(String),
+
+    #[error("invalid utilization: {0}")]
+    InvalidUtilization(f64),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,7 +139,11 @@ fn format_remaining(resets_at: DateTime<Utc>) -> String {
 
 pub fn render(usage: Option<&Result<Usage, Error>>) -> String {
     match usage {
-        Some(Ok(data)) => format!("{}\n{}", render_five_hour(data), render_seven_day(data)),
+        Some(Ok(data)) => format!(
+            "{}\n{}",
+            render_window("5h", &data.five_hour),
+            render_window("7d", &data.seven_day)
+        ),
         Some(Err(_err)) => {
             format!("5h: {}\n7d: {}", "err".red(), "err".red())
         }
@@ -140,40 +151,48 @@ pub fn render(usage: Option<&Result<Usage, Error>>) -> String {
     }
 }
 
-fn render_five_hour(usage: &Usage) -> String {
-    match &usage.five_hour {
-        Ok(window) => {
-            let bar = progress_bar::render(window.utilization, 10);
-            format!(
-                "5h: {}{} {:>3.0}% ({})",
-                bar.filled.green(),
-                bar.empty,
-                window.utilization,
-                format_remaining(window.resets_at)
-            )
-        }
-        Err(err) => {
-            logging::log_error("usage", &format!("5h render: {err}"));
-            format!("5h: {}", "err".red())
-        }
+fn remaining_percentage(window: &Window) -> Result<u8, Error> {
+    let invalid = Error::InvalidUtilization(window.utilization);
+    let used = window
+        .utilization
+        .clamp(0.0, 100.0)
+        .round()
+        .to_u8()
+        .ok_or(invalid)?;
+    let remaining = 100_u8.saturating_sub(used);
+    Ok(remaining)
+}
+
+fn colorize_bar(text: &str, remaining: u8) -> String {
+    match remaining {
+        0..THRESHOLD_RED => text.red().to_string(),
+        THRESHOLD_RED..=THRESHOLD_YELLOW => text.yellow().to_string(),
+        _ => text.green().to_string(),
     }
 }
 
-fn render_seven_day(usage: &Usage) -> String {
-    match &usage.seven_day {
-        Ok(window) => {
-            let bar = progress_bar::render(window.utilization, 10);
-            format!(
-                "7d: {}{} {:>3.0}% ({})",
-                bar.filled.green(),
-                bar.empty,
-                window.utilization,
-                format_remaining(window.resets_at)
-            )
-        }
+fn render_bar(label: &str, window: &Window) -> Result<String, Error> {
+    let remaining = remaining_percentage(window)?;
+    let percentage = f64::from(remaining);
+    let bar = progress_bar::render(percentage, 10);
+    Ok(format!(
+        "{label}: {}{} {remaining:>3}% ({})",
+        colorize_bar(&bar.filled, remaining),
+        bar.empty,
+        format_remaining(window.resets_at)
+    ))
+}
+
+fn render_window(label: &str, window: &Result<Window, Error>) -> String {
+    match window
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|data| render_bar(label, data))
+    {
+        Ok(line) => line,
         Err(err) => {
-            logging::log_error("usage", &format!("7d render: {err}"));
-            format!("7d: {}", "err".red())
+            logging::log_error("usage", &format!("{label} render: {err}"));
+            format!("{label}: {}", "err".red())
         }
     }
 }
@@ -181,7 +200,6 @@ fn render_seven_day(usage: &Usage) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_traits::ToPrimitive as _;
 
     #[test]
     fn format_remaining_minutes() {
@@ -212,8 +230,8 @@ mod tests {
         let json = r#"{
             "fetched_at": "2026-01-25T12:30:00Z",
             "response": {
-                "five_hour": { "utilization": 0.6, "resets_at": "2026-01-25T15:30:00Z" },
-                "seven_day": { "utilization": 0.4, "resets_at": "2026-01-30T00:00:00Z" }
+                "five_hour": { "utilization": 40.0, "resets_at": "2026-01-25T15:30:00Z" },
+                "seven_day": { "utilization": 60.0, "resets_at": "2026-01-30T00:00:00Z" }
             }
         }"#;
 

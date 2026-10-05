@@ -46,7 +46,7 @@ Add to `~/.claude/settings.json`:
 - **Model**: Active Claude model name
 - **Version**: Claude Code version with update indicator
 - **PLAN.md**: Progress on tasks in PLAN.md
-- **5h/7d**: API rate limit usage with time until reset
+- **5h/7d**: API rate limit remaining with time until reset
 
 ## How It Works
 

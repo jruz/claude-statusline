@@ -1,13 +1,22 @@
 # Usage Component
 
-Displays API rate limit utilization with progress bars and reset times.
+Displays remaining API rate limit with progress bars and reset times.
 
 ## Output
 
 ```
-5h: ███░░ 60% (2h 15m)
-7d: ██░░░ 40% (3d 12h)
+5h: ━━━━━━━━━━  60% (2h 15m)
+7d: ━━━━━━━━━━  40% (3d 12h)
 ```
+
+## Calculation
+
+- Remaining = `100 - utilization`, rounded to nearest integer, clamped to 0-100
+- Bar and percentage show remaining (filled = left), not usage
+- Bar color by remaining:
+  - red: < 20%
+  - yellow: 20-40%
+  - green: > 40%
 
 ## Data Source
 
@@ -35,13 +44,12 @@ Note: `utilization` is a percentage (0-100), not a fraction.
 
 ### Credentials
 
-Read from Claude Code's OAuth credentials in macOS Keychain:
+Read the OAuth access token from Claude Code's credentials, first match wins:
 
-```
-security find-generic-password -s "Claude Code-credentials" -w
-```
+1. File: `~/.claude/.credentials.json`
+2. macOS Keychain: `security find-generic-password -s "Claude Code-credentials" -w`
 
-Returns JSON with structure:
+Both return JSON with structure:
 
 ```json
 {
@@ -59,8 +67,8 @@ Location: `~/.cache/claude-statusline/usage.json`
 {
   "fetched_at": "2026-01-25T12:30:00Z",
   "response": {
-    "five_hour": { "utilization": 0.6, "resets_at": "2026-01-25T15:30:00Z" },
-    "seven_day": { "utilization": 0.4, "resets_at": "2026-01-30T00:00:00Z" }
+    "five_hour": { "utilization": 40.0, "resets_at": "2026-01-25T15:30:00Z" },
+    "seven_day": { "utilization": 60.0, "resets_at": "2026-01-30T00:00:00Z" }
   }
 }
 ```
@@ -79,18 +87,16 @@ struct Window {
 }
 
 enum Error {
-    CacheRead(io::Error),
-    CacheParse(serde_json::Error),
-    CredentialsRead,
-    ApiRequest(reqwest::Error),
-    ApiParse(reqwest::Error),
+    CacheParse(String),
+    CacheRead(String),
+    InvalidUtilization(f64),
 }
 ```
 
 Cache structure (separate from model):
 
 ```rust
-struct CachedUsage {
+struct Cached {
     fetched_at: DateTime<Utc>,
     response: Response,
 }
@@ -105,139 +111,70 @@ struct Response {
 
 | State | Condition | View |
 | --- | --- | --- |
-| Fresh | Cache exists and age < 60s | `5h: ███░░ 60% (2h 15m)` and `7d: ██░░░ 40% (3d 12h)` |
+| Fresh | Cache exists and age < 60s | `5h: ━━━━━━━━━━  60% (2h 15m)` and `7d: ━━━━━━━━━━  40% (3d 12h)` |
 | Stale | Cache exists and age >= 60s | Same as Fresh (renders stale data, triggers background refresh) |
-| Unavailable | No cache exists | `5h: err` and `7d: err` (red), triggers background refresh |
-| Error | API/credentials failed | `5h: err` and `7d: err` (red), uses stale cache if available |
+| Unavailable | Cache missing or unreadable | `5h: err` and `7d: err` (red), triggers background refresh |
+| Invalid | Cache JSON does not parse | `5h: err` and `7d: err` (red), triggers background refresh |
+
+A failed background refresh leaves the cache untouched, so the last successful response keeps rendering.
 
 ## Error Handling
 
-All errors are logged to `~/.cache/claude-statusline/error.log` and displayed as `err` in red.
-
-Log format:
+All errors are logged to `~/.cache/claude-statusline/error.log` with module `usage`:
 
 ```
-2026-01-25T12:30:45Z [usage] API request failed: connection refused
+2026-01-25T12:30:45Z [usage] api: request failed: connection refused
 ```
 
-### Credentials Errors
+### Main Process
 
 | Error | Cause | Behavior |
 | --- | --- | --- |
-| `KeychainFailed` | Keychain command returned non-zero | Log error, skip API fetch |
-| `EmptyResponse` | Keychain returned empty string | Log error, skip API fetch |
-| `InvalidUtf8` | Keychain output not valid UTF-8 | Log error, skip API fetch |
-| `Execute` | Failed to run `security` command | Log error, skip API fetch |
+| `CacheRead` | Cache file missing or unreadable | Render `err`, log unless not found |
+| `CacheParse` | Invalid cache JSON | Render `err`, log |
+| `InvalidUtilization` | Utilization not a number | Render `err` for that window, log |
 
-### API Errors
+### Background Refresh
 
-| Error | Cause | Behavior |
+Errors are strings, logged with a prefix before the process exits.
+
+| Prefix | Cause | Lock |
 | --- | --- | --- |
-| `Request` | Network failure or HTTP error | Log error, use stale cache if available |
-| `Parse` | Invalid JSON response | Log error, use stale cache if available |
-
-### Cache Errors
-
-| Error | Cause | Behavior |
-| --- | --- | --- |
-| `Read` | Failed to read cache file | Treat as no cache |
-| `Parse` | Invalid cache JSON | Treat as no cache |
-| `Write` | Failed to write cache file | Log error, continue |
-| `LockHeld` | Another process is refreshing | Skip refresh, use existing cache |
-
-All errors contribute to the error count displayed in the second line: `Errors(N): Last error text`
+| `lock acquire failed` | Lock held by another refresh, or cannot be created | Untouched |
+| `credentials` | Credentials file and keychain both failed, or `accessToken` missing | Released |
+| `api` | Request failed, non-success status, or invalid JSON response | Released |
+| `cache path not found` | Home directory not found | Released |
 
 ## Updates
 
 ### Main Process
 
-Data arrives via `CacheLoaded` message from the app-level update.
+1. `ReadUsageCache` reads the cache file and sends `CacheLoaded`
+2. `handle_cache_loaded` parses the cache and emits `SpawnBackgroundRefresh` when stale or missing
+3. `SpawnBackgroundRefresh` runs the current executable with `--refresh-usage` on a thread, stderr to the error log
 
-### Background Process (TEA)
+### Background Refresh
 
-The background process follows TEA with its own model, messages, and effects.
+`run_background_refresh` runs sequentially:
 
-#### Background Model
-
-```rust
-struct BackgroundModel {
-    api_key: Option<String>,
-    response: Option<Response>,
-}
-```
-
-#### Background Messages
-
-```rust
-enum BackgroundMsg {
-    LockAcquired(Result<(), cache::Error>),
-    KeychainResult(Result<String, credentials::Error>),
-    UsageFetched(Result<Response, api::Error>),
-    CacheSaved(Result<(), cache::Error>),
-}
-```
-
-#### Background Effects
-
-```rust
-enum BackgroundEffect {
-    AcquireLock,
-    ReadKeychain,
-    FetchUsage(String),
-    SaveCache(Response),
-    ReleaseLock,
-    LogError(Error),
-    Exit,
-}
-```
-
-#### Background Update
-
-| Message | Model Update | Effects |
-| --- | --- | --- |
-| (init) | Empty model | `AcquireLock` |
-| `LockAcquired(Ok(()))` | — | `ReadKeychain` |
-| `LockAcquired(Err(LockHeld))` | — | `Exit` |
-| `KeychainResult(Ok(key))` | Store api_key | `FetchUsage(key)` |
-| `KeychainResult(Err(e))` | — | `LogError`, `ReleaseLock`, `Exit` |
-| `UsageFetched(Ok(response))` | Store response | `SaveCache(response)` |
-| `UsageFetched(Err(e))` | — | `LogError`, `ReleaseLock`, `Exit` |
-| `CacheSaved(Ok(()))` | — | `ReleaseLock`, `Exit` |
-| `CacheSaved(Err(e))` | — | `LogError`, `ReleaseLock`, `Exit` |
+1. Remove the lock if stale
+2. Acquire the lock, exit if held
+3. Read the access token
+4. Fetch usage from the API
+5. Write `Cached { fetched_at: now, response }` to the cache file
+6. Release the lock
 
 ### Lock File
 
 Location: `~/.cache/claude-statusline/usage.lock`
 
-Prevents concurrent background refreshes. Created with `O_CREAT | O_EXCL`, deleted on completion.
+Prevents concurrent background refreshes. Created with `O_CREAT | O_EXCL`, deleted on completion. Treated as stale after 300s.
 
 ## View
 
-```rust
-fn render_five_hour(usage: &Usage) -> String {
-    match &usage.five_hour {
-        Ok(w) => format!("5h: {} {:.0}% ({})",
-            progress_bar(w.utilization * 100.0, 5),
-            w.utilization * 100.0,
-            format_remaining(w.resets_at)),
-        Err(_) => format!("5h: {}", "err".red()),
-    }
-}
+`render_window(label, window)` renders one line for both `5h` and `7d`, success and error states.
 
-fn render_seven_day(usage: &Usage) -> String {
-    match &usage.seven_day {
-        Ok(w) => format!("7d: {} {:.0}% ({})",
-            progress_bar(w.utilization * 100.0, 5),
-            w.utilization * 100.0,
-            format_remaining(w.resets_at)),
-        Err(_) => format!("7d: {}", "err".red()),
-    }
-}
-```
-
-View is responsible for rendering both success and error states.
-
-Progress bar width: 5 characters.
+Progress bar width: 10 characters.
 
 Time remaining format:
 
@@ -247,28 +184,15 @@ Time remaining format:
 
 ## Dependencies
 
-- macOS Keychain (credentials)
+- Claude Code credentials file or macOS Keychain (credentials)
 - Anthropic API (rate limits)
 - File system (cache)
 
 ## File Structure
 
 ```
-components/usage/
-├── mod.rs
-├── model.rs      # CachedUsage, Response, Window, Usage
-├── view.rs       # render function
-├── background/
-│   ├── mod.rs
-│   ├── model.rs      # BackgroundModel
-│   ├── msg.rs        # BackgroundMsg enum
-│   ├── effect.rs     # BackgroundEffect enum
-│   └── update.rs     # background update function
-└── effects/
-    ├── mod.rs
-    ├── api.rs         # fetch_usage
-    ├── cache.rs       # load, save, lock
-    └── credentials.rs # read_api_key
+components/usage.rs    # Error enum, Cached, Response, Window, Usage, cache and lock paths, render
+main.rs                # Background refresh: lock, credentials, API fetch, cache write
 ```
 
-Main process messages (`CacheLoaded`) and effects (`SpawnBackgroundRefresh`) are defined in `core/`.
+Main process messages (`CacheLoaded`) and effects (`SpawnBackgroundRefresh`) are defined in `effect.rs`.
