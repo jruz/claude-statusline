@@ -1,5 +1,6 @@
 mod components;
 mod effect;
+mod env;
 mod model;
 mod shared;
 mod version;
@@ -47,7 +48,8 @@ fn main() -> color_eyre::Result<()> {
         }
         _ => {
             let channel = parse_channel(&args)?;
-            let (mut model, mut effects) = init(channel);
+            let compact_window = env::compact_window();
+            let (mut model, mut effects) = init(channel, compact_window);
             while let Some(effect) = effects.pop() {
                 if let Some(msg) = execute(&effect, debug) {
                     let (new_model, new_effects) = update(model, msg);

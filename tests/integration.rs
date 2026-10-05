@@ -5,7 +5,9 @@ mod tests {
     use super::*;
 
     fn statusline() -> assert_cmd::Command {
-        assert_cmd::Command::new(assert_cmd::cargo::cargo_bin!("claude-statusline"))
+        let mut cmd = assert_cmd::Command::new(assert_cmd::cargo::cargo_bin!("claude-statusline"));
+        cmd.env_remove("CLAUDE_CODE_AUTO_COMPACT_WINDOW");
+        cmd
     }
 
     fn context_stdin(size: u64, tokens: u64) -> String {
@@ -65,27 +67,63 @@ mod tests {
     }
 
     #[test]
-    fn context_color_green_below_50() {
+    fn context_color_green_below_32() {
         let has_green = predicate::str::contains("\x1b[32m");
         let mut cmd = statusline();
-        let stdin = context_stdin(200_000, 98_000);
+        let stdin = context_stdin(200_000, 62_000);
         cmd.write_stdin(stdin).assert().success().stdout(has_green);
     }
 
     #[test]
-    fn context_color_yellow_at_50() {
+    fn context_color_yellow_at_32() {
         let has_yellow = predicate::str::contains("\x1b[33m");
         let mut cmd = statusline();
-        let stdin = context_stdin(200_000, 100_000);
+        let stdin = context_stdin(200_000, 64_000);
         cmd.write_stdin(stdin).assert().success().stdout(has_yellow);
     }
 
     #[test]
-    fn context_color_red_at_70() {
+    fn context_color_red_at_75() {
         let has_red = predicate::str::contains("\x1b[31m");
         let mut cmd = statusline();
-        let stdin = context_stdin(200_000, 140_000);
+        let stdin = context_stdin(200_000, 150_000);
         cmd.write_stdin(stdin).assert().success().stdout(has_red);
+    }
+
+    #[test]
+    fn context_uses_compact_window_env() {
+        let has_text = predicate::str::contains("  11% (44k)");
+        let mut cmd = statusline();
+        let stdin = context_stdin(1_000_000, 44_000);
+        cmd.env("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "400000")
+            .write_stdin(stdin)
+            .assert()
+            .success()
+            .stdout(has_text);
+    }
+
+    #[test]
+    fn context_caps_compact_window_to_model_window() {
+        let has_text = predicate::str::contains("  50% (100k)");
+        let mut cmd = statusline();
+        let stdin = context_stdin(200_000, 100_000);
+        cmd.env("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "400000")
+            .write_stdin(stdin)
+            .assert()
+            .success()
+            .stdout(has_text);
+    }
+
+    #[test]
+    fn context_invalid_compact_window_shows_err() {
+        let has_err = predicate::str::contains("Context: \x1b[31merr");
+        let mut cmd = statusline();
+        let stdin = context_stdin(1_000_000, 44_000);
+        cmd.env("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "400k")
+            .write_stdin(stdin)
+            .assert()
+            .success()
+            .stdout(has_err);
     }
 
     #[test]

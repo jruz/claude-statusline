@@ -6,10 +6,12 @@ use crate::components::usage;
 use crate::components::version;
 use crate::effect::Effect;
 use crate::effect::Msg;
+use crate::env;
 
 pub struct Model {
     pub channel: version::Channel,
     pub claude: Option<Result<String, claude_model::Error>>,
+    pub compact_window: Result<Option<std::num::NonZeroU64>, env::Error>,
     pub context: Option<Result<context::Context, context::Error>>,
     pub effort: Option<Result<Option<String>, effort::Error>>,
     pub plan: Option<Result<plan::Progress, plan::Error>>,
@@ -17,10 +19,14 @@ pub struct Model {
     pub version: Option<version::Version>,
 }
 
-pub fn init(channel: version::Channel) -> (Model, Vec<Effect>) {
+pub fn init(
+    channel: version::Channel,
+    compact_window: Result<Option<std::num::NonZeroU64>, env::Error>,
+) -> (Model, Vec<Effect>) {
     let model = Model {
         channel,
         claude: None,
+        compact_window,
         context: None,
         effort: None,
         plan: None,
@@ -103,7 +109,8 @@ fn handle_stdin_received(
         });
     }
 
-    let context_result = context::parse(result);
+    let compact_window = model.compact_window.clone();
+    let context_result = context::parse(result, compact_window);
     if let Err(err) = &context_result {
         effects.push(Effect::LogError {
             module: "context".to_owned(),

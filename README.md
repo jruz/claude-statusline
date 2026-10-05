@@ -54,7 +54,7 @@ Add to `~/.claude/settings.json`:
 
 | Component | Source |
 | --- | --- |
-| Context | `context_window.current_usage` (input + cache tokens) and `context_window.context_window_size` from stdin JSON |
+| Context | `context_window.current_usage` (input + cache tokens) and `context_window.context_window_size` from stdin JSON, capped by `CLAUDE_CODE_AUTO_COMPACT_WINDOW` |
 | Model | `model.display_name` from stdin JSON |
 | Version | `claude --version` + npm registry for update check |
 | PLAN.md | Counts `- [x]` and `- [ ]` checkboxes in `./PLAN.md` |

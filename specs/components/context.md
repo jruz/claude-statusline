@@ -31,7 +31,9 @@ Received via stdin JSON from Claude Code.
 
 - Tokens = `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (output tokens excluded, matches Claude Code's `/context`)
 - `current_usage: null` (session start, before first message) = 0 tokens
-- Percentage used = `tokens * 100 / context_window_size`, rounded to nearest integer, clamped to 100
+- Window = `min(CLAUDE_CODE_AUTO_COMPACT_WINDOW, context_window_size)` when the env var is set, else `context_window_size` (mirrors `/context` "Auto-compact window")
+- Percentage used = `tokens * 100 / window`, rounded to nearest integer, clamped to 100
+- Invalid or non-unicode `CLAUDE_CODE_AUTO_COMPACT_WINDOW` = error
 - Tokens rounded to nearest unit (`k` or `m`), no decimals
 - Bar and percentage show usage (filled = used), not remaining
 
@@ -46,9 +48,11 @@ struct Context {
 }
 
 enum Error {
+    CompactWindow,
     MissingContextWindow,
     MissingWindowSize,
     ParseJson,
+    PercentageRange,
     ReadStdin,
 }
 ```
@@ -59,7 +63,7 @@ enum Error {
 | --- | --- | --- |
 | Loading | Effect not yet executed (`None`) | `Context: ...` |
 | Available | `context_window_size` present (`Some(Ok(...))`) | `Context: ━━━━━━━━━━  15% (152k)` |
-| Unavailable | Read, parse, or missing field (`Some(Err(...))`) | `Context: err` (red) |
+| Unavailable | Read, parse, missing field, or invalid `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (`Some(Err(...))`) | `Context: err` (red) |
 
 ## Error Handling
 
@@ -95,9 +99,11 @@ Bar color based on percentage. Text uses default color.
 
 | Range | Color |
 | --- | --- |
-| 0-49% | Green |
-| 50-69% | Orange |
-| 70%+ | Red |
+| 0-31% | Green |
+| 32-74% | Yellow |
+| 75%+ | Red |
+
+Rationale (400k window): quality is near full up to ~128k, declines gradually to ~300k, auto-compact fires at ~367k. Opus 5 holds 91.3% on 8-needle MRCR at 128K but averages 45.7% across 1M.
 
 ## File Structure
 

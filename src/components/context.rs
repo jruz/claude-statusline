@@ -1,13 +1,17 @@
 use owo_colors::OwoColorize as _;
 use serde::Deserialize;
 
+use crate::env;
 use crate::shared::progress_bar;
 
-const THRESHOLD_RED: u8 = 70;
-const THRESHOLD_ORANGE: u8 = 50;
+const THRESHOLD_RED: u8 = 75;
+const THRESHOLD_ORANGE: u8 = 32;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    CompactWindow(#[from] env::Error),
+
     #[error("Missing context_window in stdin")]
     MissingContextWindow,
 
@@ -51,15 +55,30 @@ struct CurrentUsageJson {
     input: u64,
 }
 
-pub fn parse(result: Result<String, std::io::Error>) -> Result<Context, Error> {
+pub fn parse(
+    result: Result<String, std::io::Error>,
+    compact_window: Result<Option<std::num::NonZeroU64>, env::Error>,
+) -> Result<Context, Error> {
+    let limit = compact_window?;
     let input = result.map_err(Error::ReadStdin)?;
     let parsed: StdinJson = serde_json::from_str(&input).map_err(Error::ParseJson)?;
     let window = parsed.context_window.ok_or(Error::MissingContextWindow)?;
     let size = window.context_window_size.ok_or(Error::MissingWindowSize)?;
+    let effective_size = effective_window(size, limit);
     let usage = window.current_usage.as_ref();
     let tokens = sum_tokens(usage);
-    let percentage = tokens_to_percentage(tokens, size)?;
+    let percentage = tokens_to_percentage(tokens, effective_size)?;
     Ok(Context { percentage, tokens })
+}
+
+fn effective_window(
+    size: std::num::NonZeroU64,
+    limit: Option<std::num::NonZeroU64>,
+) -> std::num::NonZeroU64 {
+    match limit {
+        Some(compact) => compact.min(size),
+        None => size,
+    }
 }
 
 pub fn render(context: Option<&Result<Context, Error>>) -> String {
