@@ -49,12 +49,8 @@
         ];
         sandbox = pkgs.writeShellScriptBin "sandbox" ''
           SELF_DIR="$(dirname "$(readlink -f "$0")")"
-          SANDBOX_CMD="''${@:-$SHELL}"
           ARGS=(
-            --unshare-user
-            --unshare-ipc
-            --unshare-uts
-            --unshare-cgroup
+            --unshare-all
             --share-net
             --die-with-parent
             --ro-bind /nix /nix
@@ -77,7 +73,8 @@
             --proc /proc
           )
           ARGS+=(
-            --bind-try "$HOME/.cargo" "$HOME/.cargo"
+            --bind-try "$HOME/.cargo/registry" "$HOME/.cargo/registry"
+            --bind-try "$HOME/.cargo/git" "$HOME/.cargo/git"
             --bind-try "$HOME/.bun" "$HOME/.bun"
           )
           exec ${pkgs.bubblewrap}/bin/bwrap "''${ARGS[@]}" -- "$@"

@@ -3,7 +3,9 @@ install:
     sandbox cargo install \
         --path . \
         --locked \
-        --force
+        --force \
+        --root target/dist
+    cp target/dist/bin/* ~/.cargo/bin/
 
 rust-build:
     sandbox cargo build --all-targets
