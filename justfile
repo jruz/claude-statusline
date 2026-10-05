@@ -1,6 +1,9 @@
 # bin projects only
 install:
-    sandbox cargo install --path . --force
+    sandbox cargo install \
+        --path . \
+        --locked \
+        --force
 
 rust-build:
     sandbox cargo build --all-targets

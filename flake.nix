@@ -73,7 +73,6 @@
             --ro-bind-try "$HOME/.ssh/known_hosts" "$HOME/.ssh/known_hosts"
             --setenv PATH "${sandboxPath}:$SELF_DIR"
             --setenv HOME "$HOME"
-            --setenv REVISION "''${REVISION:-dev}"
             --dev /dev
             --proc /proc
           )
