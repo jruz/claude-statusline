@@ -206,15 +206,23 @@ fn run_background_refresh() -> color_eyre::Result<()> {
         color_eyre::eyre::eyre!("cache path not found")
     })?;
 
-    if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let json = serde_json::to_string_pretty(&cached)?;
-    std::fs::write(&cache_path, json)?;
+    write_cache(&cache_path, &cached).map_err(|err| {
+        shared::logging::log_error("usage", &format!("cache write: {err}"));
+        cleanup_lock(&lock_path);
+        color_eyre::eyre::eyre!("cache write: {err}")
+    })?;
 
     cleanup_lock(&lock_path);
     Ok(())
+}
+
+fn write_cache(cache_path: &std::path::Path, cached: &impl serde::Serialize) -> Result<(), String> {
+    if let Some(parent) = cache_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|err| format!("create dir failed: {err}"))?;
+    }
+    let json =
+        serde_json::to_string_pretty(cached).map_err(|err| format!("serialize failed: {err}"))?;
+    std::fs::write(cache_path, json).map_err(|err| format!("write failed: {err}"))
 }
 
 fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
@@ -261,12 +269,11 @@ fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
         color_eyre::eyre::eyre!("cache path not found")
     })?;
 
-    if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let json = serde_json::to_string_pretty(&cached)?;
-    std::fs::write(&cache_path, json)?;
+    write_cache(&cache_path, &cached).map_err(|err| {
+        shared::logging::log_error("version", &format!("cache write: {err}"));
+        cleanup_lock(&lock_path);
+        color_eyre::eyre::eyre!("cache write: {err}")
+    })?;
 
     cleanup_lock(&lock_path);
     Ok(())

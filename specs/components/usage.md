@@ -144,6 +144,7 @@ Errors are strings, logged with a prefix before the process exits.
 | `credentials` | Credentials file and keychain both failed, or `accessToken` missing | Released |
 | `api` | Request failed, non-success status, or invalid JSON response | Released |
 | `cache path not found` | Home directory not found | Released |
+| `cache write` | Cache directory creation, serialization, or file write failed | Released |
 
 ## Updates
 
