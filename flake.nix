@@ -27,7 +27,6 @@
         rustToolchain = builtins.fromTOML (builtins.readFile ./rust-toolchain.toml);
         rustVersion = rustToolchain.toolchain.channel;
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-        nu-lint = import ./nu-lint.nix { inherit pkgs; };
         revision = self.rev or "dirty";
         sandboxPath = pkgs.lib.makeBinPath [
           rust
