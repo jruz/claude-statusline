@@ -30,6 +30,9 @@ pub enum Error {
     #[error("cache read: {0}")]
     CacheRead(String),
 
+    #[error("expired at {0}")]
+    Expired(DateTime<Utc>),
+
     #[error("invalid utilization: {0}")]
     InvalidUtilization(f64),
 }
@@ -113,9 +116,16 @@ pub fn parse_cache(content: &str) -> Result<Usage, Error> {
     })?;
 
     Ok(Usage {
-        five_hour: Ok(cached.response.five_hour),
-        seven_day: Ok(cached.response.seven_day),
+        five_hour: reject_expired(cached.response.five_hour),
+        seven_day: reject_expired(cached.response.seven_day),
     })
+}
+
+fn reject_expired(window: Window) -> Result<Window, Error> {
+    if window.resets_at <= Utc::now() {
+        return Err(Error::Expired(window.resets_at));
+    }
+    Ok(window)
 }
 
 pub fn is_cache_stale(content: &str) -> bool {
@@ -241,20 +251,45 @@ mod tests {
         assert!(result.contains('h'));
     }
 
+    fn cache_json(
+        five_hour_resets_at: DateTime<Utc>,
+        seven_day_resets_at: DateTime<Utc>,
+    ) -> String {
+        format!(
+            r#"{{
+            "fetched_at": "{}",
+            "response": {{
+                "five_hour": {{ "utilization": 40.0, "resets_at": "{}" }},
+                "seven_day": {{ "utilization": 60.0, "resets_at": "{}" }}
+            }}
+        }}"#,
+            Utc::now().to_rfc3339(),
+            five_hour_resets_at.to_rfc3339(),
+            seven_day_resets_at.to_rfc3339()
+        )
+    }
+
     #[test]
     fn parse_cache_valid() {
-        let json = r#"{
-            "fetched_at": "2026-01-25T12:30:00Z",
-            "response": {
-                "five_hour": { "utilization": 40.0, "resets_at": "2026-01-25T15:30:00Z" },
-                "seven_day": { "utilization": 60.0, "resets_at": "2026-01-30T00:00:00Z" }
-            }
-        }"#;
+        let json = cache_json(
+            Utc::now() + chrono::Duration::hours(3),
+            Utc::now() + chrono::Duration::days(5),
+        );
 
-        let result = parse_cache(json);
-        assert!(result.is_ok());
-        let usage = result.expect("parse should succeed");
+        let usage = parse_cache(&json).expect("parse should succeed");
         usage.five_hour.expect("five_hour should be ok");
+        usage.seven_day.expect("seven_day should be ok");
+    }
+
+    #[test]
+    fn parse_cache_rejects_expired_window() {
+        let json = cache_json(
+            Utc::now() - chrono::Duration::hours(1),
+            Utc::now() + chrono::Duration::days(5),
+        );
+
+        let usage = parse_cache(&json).expect("parse should succeed");
+        assert!(matches!(usage.five_hour, Err(Error::Expired(_))));
         usage.seven_day.expect("seven_day should be ok");
     }
 
