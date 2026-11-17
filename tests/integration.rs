@@ -265,6 +265,25 @@ mod tests {
     }
 
     #[test]
+    fn usage_refresh_skips_while_lock_is_held() {
+        let home = tempfile::tempdir().expect("failed to create temp home");
+        let cache_dir = home.path().join(".cache").join("claude-statusline");
+        std::fs::create_dir_all(&cache_dir).expect("failed to create cache dir");
+        let lock_path = cache_dir.join("usage.lock");
+        std::fs::write(&lock_path, "").expect("failed to write lock");
+
+        let mut cmd = statusline();
+        cmd.env("HOME", home.path())
+            .arg("--refresh-usage")
+            .assert()
+            .success();
+
+        assert!(lock_path.exists());
+        assert!(!cache_dir.join("error.log").exists());
+        assert!(!cache_dir.join("usage.json").exists());
+    }
+
+    #[test]
     fn effort_renders_level() {
         let has_effort = predicate::str::contains("Thinking: high");
         let mut cmd = statusline();

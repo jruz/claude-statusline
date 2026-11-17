@@ -46,6 +46,12 @@ pub struct Response {
     pub seven_day: Window,
 }
 
+pub enum LockState {
+    Free,
+    Held,
+    Stale,
+}
+
 pub fn cache_path() -> Option<PathBuf> {
     dirs::home_dir().map(|dir| {
         dir.join(".cache")
@@ -60,6 +66,16 @@ pub fn lock_path() -> Option<PathBuf> {
             .join("claude-statusline")
             .join("usage.lock")
     })
+}
+
+pub fn lock_state(lock_path: &std::path::Path) -> LockState {
+    if !lock_path.exists() {
+        return LockState::Free;
+    }
+    if is_lock_stale(lock_path) {
+        return LockState::Stale;
+    }
+    LockState::Held
 }
 
 pub fn is_lock_stale(lock_path: &std::path::Path) -> bool {

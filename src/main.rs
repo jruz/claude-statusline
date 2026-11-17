@@ -173,7 +173,6 @@ fn read_access_token_from_keychain() -> Result<String, String> {
 
 fn run_background_refresh() -> color_eyre::Result<()> {
     use crate::components::usage;
-    use chrono::Utc;
 
     let lock_path = usage::lock_path().ok_or_else(|| {
         shared::logging::log_error("usage", "lock path not found");
@@ -184,14 +183,24 @@ fn run_background_refresh() -> color_eyre::Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    if usage::is_lock_stale(&lock_path) {
-        cleanup_lock(&lock_path);
+    match usage::lock_state(&lock_path) {
+        usage::LockState::Held => Ok(()),
+        usage::LockState::Stale => {
+            cleanup_lock(&lock_path);
+            refresh_usage(&lock_path)
+        }
+        usage::LockState::Free => refresh_usage(&lock_path),
     }
+}
+
+fn refresh_usage(lock_path: &std::path::Path) -> color_eyre::Result<()> {
+    use crate::components::usage;
+    use chrono::Utc;
 
     let lock_file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(&lock_path)
+        .open(lock_path)
         .map_err(|err| {
             shared::logging::log_error("usage", &format!("lock acquire failed: {err}"));
             err
@@ -200,13 +209,11 @@ fn run_background_refresh() -> color_eyre::Result<()> {
 
     let access_token = read_access_token().map_err(|err| {
         shared::logging::log_error("usage", &format!("credentials: {err}"));
-        cleanup_lock(&lock_path);
         color_eyre::eyre::eyre!("credentials: {err}")
     })?;
 
     let response = fetch_usage(&access_token).map_err(|err| {
         shared::logging::log_error("usage", &format!("api: {err}"));
-        cleanup_lock(&lock_path);
         color_eyre::eyre::eyre!("api: {err}")
     })?;
 
@@ -217,17 +224,15 @@ fn run_background_refresh() -> color_eyre::Result<()> {
 
     let cache_path = usage::cache_path().ok_or_else(|| {
         shared::logging::log_error("usage", "cache path not found");
-        cleanup_lock(&lock_path);
         color_eyre::eyre::eyre!("cache path not found")
     })?;
 
     write_cache(&cache_path, &cached).map_err(|err| {
         shared::logging::log_error("usage", &format!("cache write: {err}"));
-        cleanup_lock(&lock_path);
         color_eyre::eyre::eyre!("cache write: {err}")
     })?;
 
-    cleanup_lock(&lock_path);
+    cleanup_lock(lock_path);
     Ok(())
 }
 
