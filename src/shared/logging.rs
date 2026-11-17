@@ -1,6 +1,8 @@
 use std::fs;
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+const MAX_LOG_BYTES: u64 = 1024 * 1024;
 
 fn log_dir() -> Result<PathBuf, std::io::Error> {
     let home_dir = dirs::home_dir().ok_or_else(|| {
@@ -20,7 +22,23 @@ pub fn open_log_file() -> Result<fs::File, std::io::Error> {
     fs::create_dir_all(&dir)?;
 
     let path = log_path()?;
+    rotate_if_full(&path)?;
     fs::OpenOptions::new().create(true).append(true).open(path)
+}
+
+fn rotate_if_full(path: &Path) -> Result<(), std::io::Error> {
+    if is_full(path)? {
+        fs::rename(path, path.with_extension("log.1"))?;
+    }
+    Ok(())
+}
+
+fn is_full(path: &Path) -> Result<bool, std::io::Error> {
+    if !path.exists() {
+        return Ok(false);
+    }
+    let size = fs::metadata(path)?.len();
+    Ok(size > MAX_LOG_BYTES)
 }
 
 pub fn log_error(module: &str, error: &str) {

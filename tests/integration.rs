@@ -303,6 +303,30 @@ mod tests {
     }
 
     #[test]
+    fn error_log_rotates_when_full() {
+        let home = tempfile::tempdir().expect("failed to create temp home");
+        let cache_dir = home.path().join(".cache").join("claude-statusline");
+        std::fs::create_dir_all(&cache_dir).expect("failed to create cache dir");
+        let log_path = cache_dir.join("error.log");
+        let full_log = "x".repeat(2 * 1024 * 1024);
+        std::fs::write(&log_path, &full_log).expect("failed to write log");
+
+        let mut cmd = statusline();
+        cmd.env("HOME", home.path())
+            .current_dir(home.path())
+            .write_stdin("{}")
+            .assert()
+            .success();
+
+        let rotated = std::fs::read_to_string(cache_dir.join("error.log.1"))
+            .expect("rotated log should exist");
+        let current = std::fs::read_to_string(&log_path).expect("log should exist");
+        assert_eq!(rotated.len(), full_log.len());
+        assert!(current.contains("PLAN.md not found"));
+        assert!(current.len() < full_log.len());
+    }
+
+    #[test]
     fn effort_renders_level() {
         let has_effort = predicate::str::contains("Thinking: high");
         let mut cmd = statusline();
