@@ -5,6 +5,7 @@ mod git '.just/git.justfile'
 mod tools '.just/tools.justfile'
 
 musl-target := arch() + '-unknown-linux-musl'
+log-dir := home_directory() / '.cache' / 'claude-statusline'
 
 check:
     just just::fmt-check
@@ -45,6 +46,14 @@ demo:
     (open tests/fixtures/demo_stdin.json
         | to json --raw
         | ^./target/docker/{{ musl-target }}/debug/claude-statusline)
+
+logs-tail:
+    tail -f {{ log-dir }}/error.log
+
+logs-clear:
+    #!/usr/bin/env nu
+    "" | save --force {{ log-dir }}/error.log
+    rm --force {{ log-dir }}/error.log.1
 
 readme-screenshot:
     sandbox cargo build --target {{ musl-target }}
