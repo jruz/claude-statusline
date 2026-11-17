@@ -127,7 +127,10 @@ fn fetch_usage(access_token: &str) -> Result<crate::components::usage::Response,
 }
 
 fn read_access_token() -> Result<String, String> {
-    read_access_token_from_file().or_else(|_| read_access_token_from_keychain())
+    if cfg!(target_os = "macos") {
+        return read_access_token_from_keychain();
+    }
+    read_access_token_from_file()
 }
 
 fn extract_access_token(json: &serde_json::Value) -> Result<String, String> {

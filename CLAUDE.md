@@ -20,7 +20,10 @@ TEA (The Elm Architecture): Model → Update → View
 
 ## Usage API
 
-Background refresh fetches from `https://api.anthropic.com/api/oauth/usage` using OAuth token from macOS keychain (`Claude Code-credentials`).
+Background refresh fetches from `https://api.anthropic.com/api/oauth/usage` using the OAuth token Claude Code keeps refreshed:
+
+- macOS: keychain item `Claude Code-credentials`
+- Linux: `~/.claude/.credentials.json`
 
 ## Version API
 
