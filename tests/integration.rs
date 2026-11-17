@@ -367,6 +367,39 @@ mod tests {
     }
 
     #[test]
+    fn usage_window_without_reset_renders_full_length() {
+        let home = tempfile::tempdir().expect("failed to create temp home");
+        let cache_dir = home.path().join(".cache").join("claude-statusline");
+        std::fs::create_dir_all(&cache_dir).expect("failed to create cache dir");
+        let cache_path = cache_dir.join("usage.json");
+        std::fs::write(
+            cache_path,
+            r#"{
+                "fetched_at": "2026-04-29T17:33:41Z",
+                "response": {
+                    "five_hour": { "utilization": 0.0, "resets_at": null },
+                    "seven_day": { "utilization": 60.0, "resets_at": "2099-05-05T18:00:00Z" }
+                }
+            }"#,
+        )
+        .expect("failed to write usage cache");
+        let lock_path = cache_dir.join("usage.lock");
+        std::fs::write(lock_path, "").expect("failed to write lock");
+
+        let has_five_hour_full = predicate::str::contains("100% (5h 0m)");
+        let has_seven_day = predicate::str::contains("40% (");
+        let home_path = home.path();
+        let mut cmd = statusline();
+        cmd.env("HOME", home_path)
+            .current_dir(home_path)
+            .write_stdin("{}")
+            .assert()
+            .success()
+            .stdout(has_five_hour_full)
+            .stdout(has_seven_day);
+    }
+
+    #[test]
     fn effort_renders_level() {
         let has_effort = predicate::str::contains("Thinking: high");
         let mut cmd = statusline();

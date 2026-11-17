@@ -121,9 +121,10 @@ fn fetch_usage(access_token: &str) -> Result<crate::components::usage::Response,
         return Err(format!("api error: {}", response.status()));
     }
 
-    response
-        .json()
-        .map_err(|err| format!("parse failed: {err}"))
+    let body = response
+        .text()
+        .map_err(|err| format!("read body failed: {err}"))?;
+    serde_json::from_str(&body).map_err(|err| format!("parse failed: {err}: {body}"))
 }
 
 fn read_access_token() -> Result<String, String> {

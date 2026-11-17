@@ -42,12 +42,14 @@ Response:
 
 Note: `utilization` is a percentage (0-100), not a fraction.
 
+`resets_at` is `null` when a window has no reset time yet, such as right after it resets.
+
 ### Credentials
 
-Read the OAuth access token from Claude Code's credentials, first match wins:
+Read the OAuth access token from Claude Code's credentials:
 
-1. File: `~/.claude/.credentials.json`
-2. macOS Keychain: `security find-generic-password -s "Claude Code-credentials" -w`
+- macOS: Keychain `security find-generic-password -s "Claude Code-credentials" -w`
+- Linux: file `~/.claude/.credentials.json`
 
 Both return JSON with structure:
 
@@ -83,12 +85,13 @@ struct Usage {
 
 struct Window {
     utilization: f64,
-    resets_at: DateTime<Utc>,
+    resets_at: Option<DateTime<Utc>>,
 }
 
 enum Error {
     CacheParse(String),
     CacheRead(String),
+    Expired(DateTime<Utc>),
     InvalidUtilization(f64),
 }
 ```
@@ -115,6 +118,8 @@ struct Response {
 | Stale       | Cache exists and age >= 60s | Same as Fresh (renders stale data, triggers background refresh)   |
 | Unavailable | Cache missing or unreadable | `5h: err` and `7d: err` (red), triggers background refresh        |
 | Invalid     | Cache JSON does not parse   | `5h: err` and `7d: err` (red), triggers background refresh        |
+| Expired     | Window `resets_at` has past | `err` (red) for that window, not logged                           |
+| Not started | Window `resets_at` is null  | `5h: ━━━━━━━━━━ 100% (5h 0m)` and `7d: ━━━━━━━━━━ 100% (7d 0h)`   |
 
 A failed background refresh leaves the cache untouched, so the last successful response keeps rendering.
 
@@ -132,19 +137,20 @@ All errors are logged to `~/.cache/claude-statusline/error.log` with module `usa
 | -------------------- | -------------------------------- | ---------------------------------- |
 | `CacheRead`          | Cache file missing or unreadable | Render `err`, log unless not found |
 | `CacheParse`         | Invalid cache JSON               | Render `err`, log                  |
+| `Expired`            | Window reset time has passed     | Render `err` for that window       |
 | `InvalidUtilization` | Utilization not a number         | Render `err` for that window, log  |
 
 ### Background Refresh
 
-Errors are strings, logged with a prefix before the process exits.
+Errors are strings, logged with a prefix before the process exits. A failed refresh keeps the lock, so the next attempt waits until it goes stale.
 
-| Prefix                 | Cause                                                               | Lock      |
-| ---------------------- | ------------------------------------------------------------------- | --------- |
-| `lock acquire failed`  | Lock held by another refresh, or cannot be created                  | Untouched |
-| `credentials`          | Credentials file and keychain both failed, or `accessToken` missing | Released  |
-| `api`                  | Request failed, non-success status, or invalid JSON response        | Released  |
-| `cache path not found` | Home directory not found                                            | Released  |
-| `cache write`          | Cache directory creation, serialization, or file write failed       | Released  |
+| Prefix                 | Cause                                                                      | Lock      |
+| ---------------------- | -------------------------------------------------------------------------- | --------- |
+| `lock acquire failed`  | Lock cannot be created                                                     | Untouched |
+| `credentials`          | Credentials read failed, or `accessToken` missing                          | Kept      |
+| `api`                  | Request failed, non-success status, or invalid JSON response (body logged) | Kept      |
+| `cache path not found` | Home directory not found                                                   | Kept      |
+| `cache write`          | Cache directory creation, serialization, or file write failed              | Kept      |
 
 ## Updates
 
@@ -158,18 +164,19 @@ Errors are strings, logged with a prefix before the process exits.
 
 `run_background_refresh` runs sequentially:
 
-1. Remove the lock if stale
-2. Acquire the lock, exit if held
-3. Read the access token
-4. Fetch usage from the API
-5. Write `Cached { fetched_at: now, response }` to the cache file
-6. Release the lock
+1. Exit if the lock is held
+2. Remove the lock if stale
+3. Acquire the lock
+4. Read the access token
+5. Fetch usage from the API
+6. Write `Cached { fetched_at: now, response }` to the cache file
+7. Release the lock
 
 ### Lock File
 
 Location: `~/.cache/claude-statusline/usage.lock`
 
-Prevents concurrent background refreshes. Created with `O_CREAT | O_EXCL`, deleted on completion. Treated as stale after 300s.
+Prevents concurrent background refreshes and backs off after a failed one. Created with `O_CREAT | O_EXCL`, deleted on success. Treated as stale after 300s.
 
 ## View
 
@@ -182,6 +189,7 @@ Time remaining format:
 - < 1 hour: `Xm`
 - < 24 hours: `Xh Ym`
 - > = 24 hours: `Xd Yh`
+- No reset time: the full window length, `5h 0m` or `7d 0h`
 
 ## Dependencies
 

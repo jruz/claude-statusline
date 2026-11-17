@@ -18,7 +18,7 @@ pub struct Usage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Window {
-    pub resets_at: DateTime<Utc>,
+    pub resets_at: Option<DateTime<Utc>>,
     pub utilization: f64,
 }
 
@@ -78,8 +78,11 @@ pub fn parse_cache(content: &str) -> Result<Usage, Error> {
 }
 
 fn reject_expired(window: Window) -> Result<Window, Error> {
-    if window.resets_at <= Utc::now() {
-        let expired = Error::Expired(window.resets_at);
+    let Some(resets_at) = window.resets_at else {
+        return Ok(window);
+    };
+    if resets_at <= Utc::now() {
+        let expired = Error::Expired(resets_at);
         return Err(expired);
     }
     Ok(window)
@@ -97,10 +100,18 @@ pub fn is_cache_stale(content: &str) -> bool {
     age.num_seconds() >= 60
 }
 
-fn format_remaining(resets_at: DateTime<Utc>) -> String {
+fn time_until_reset(
+    resets_at: Option<DateTime<Utc>>,
+    length: chrono::Duration,
+) -> chrono::Duration {
+    let Some(time) = resets_at else {
+        return length;
+    };
     let now = Utc::now();
-    let duration = resets_at.signed_duration_since(now);
+    time.signed_duration_since(now)
+}
 
+fn format_duration(duration: chrono::Duration) -> String {
     if duration.num_seconds() <= 0 {
         return "0m".to_string();
     }
@@ -124,8 +135,8 @@ pub fn render(usage: Option<&Result<Usage, Error>>) -> String {
     match usage {
         Some(Ok(data)) => format!(
             "{}\n{}",
-            render_window("5h", &data.five_hour),
-            render_window("7d", &data.seven_day)
+            render_window("5h", chrono::Duration::hours(5), &data.five_hour),
+            render_window("7d", chrono::Duration::days(7), &data.seven_day)
         ),
         Some(Err(_err)) => {
             format!("5h: {}\n7d: {}", "err".red(), "err".red())
@@ -154,23 +165,24 @@ fn colorize_bar(text: &str, remaining: u8) -> String {
     }
 }
 
-fn render_bar(label: &str, window: &Window) -> Result<String, Error> {
+fn render_bar(label: &str, length: chrono::Duration, window: &Window) -> Result<String, Error> {
     let remaining = remaining_percentage(window)?;
     let percentage = f64::from(remaining);
     let bar = progress_bar::render(percentage, 10);
+    let until_reset = time_until_reset(window.resets_at, length);
     Ok(format!(
         "{label}: {}{} {remaining:>3}% ({})",
         colorize_bar(&bar.filled, remaining),
         bar.empty,
-        format_remaining(window.resets_at)
+        format_duration(until_reset)
     ))
 }
 
-fn render_window(label: &str, window: &Result<Window, Error>) -> String {
+fn render_window(label: &str, length: chrono::Duration, window: &Result<Window, Error>) -> String {
     match window
         .as_ref()
         .map_err(Clone::clone)
-        .and_then(|data| render_bar(label, data))
+        .and_then(|data| render_bar(label, length, data))
     {
         Ok(line) => line,
         Err(err) => {
@@ -187,27 +199,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn format_remaining_minutes() {
-        let resets_at = Utc::now() + chrono::Duration::minutes(45);
-        let result = format_remaining(resets_at);
-        assert!(result.ends_with('m'));
-        assert!(!result.contains('h'));
+    fn format_duration_minutes() {
+        let duration = chrono::Duration::minutes(45);
+        assert_eq!(format_duration(duration), "45m");
     }
 
     #[test]
-    fn format_remaining_hours() {
-        let resets_at = Utc::now() + chrono::Duration::hours(2) + chrono::Duration::minutes(15);
-        let result = format_remaining(resets_at);
-        assert!(result.contains("h "));
-        assert!(result.contains('m'));
+    fn format_duration_hours() {
+        let duration = chrono::Duration::hours(2) + chrono::Duration::minutes(15);
+        assert_eq!(format_duration(duration), "2h 15m");
     }
 
     #[test]
-    fn format_remaining_days() {
-        let resets_at = Utc::now() + chrono::Duration::days(3) + chrono::Duration::hours(12);
-        let result = format_remaining(resets_at);
-        assert!(result.contains("d "));
-        assert!(result.contains('h'));
+    fn format_duration_days() {
+        let duration = chrono::Duration::days(3) + chrono::Duration::hours(12);
+        assert_eq!(format_duration(duration), "3d 12h");
     }
 
     fn cache_json(
@@ -250,6 +256,22 @@ mod tests {
         let usage = parse_cache(&json).expect("parse should succeed");
         assert!(matches!(usage.five_hour, Err(Error::Expired(_))));
         usage.seven_day.expect("seven_day should be ok");
+    }
+
+    #[test]
+    fn render_window_without_reset_shows_full_length() {
+        let json = r#"{
+            "fetched_at": "2026-04-29T17:33:41Z",
+            "response": {
+                "five_hour": { "utilization": 0.0, "resets_at": null },
+                "seven_day": { "utilization": 60.0, "resets_at": "2099-05-05T18:00:00Z" }
+            }
+        }"#;
+
+        let usage = parse_cache(json);
+        let usage_ref = Some(&usage);
+        let output = render(usage_ref);
+        assert!(output.contains("100% (5h 0m)"));
     }
 
     #[test]
