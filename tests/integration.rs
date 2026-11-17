@@ -327,6 +327,39 @@ mod tests {
     }
 
     #[test]
+    fn usage_expired_cache_renders_err_without_logging() {
+        let home = tempfile::tempdir().expect("failed to create temp home");
+        let cache_dir = home.path().join(".cache").join("claude-statusline");
+        std::fs::create_dir_all(&cache_dir).expect("failed to create cache dir");
+        std::fs::write(
+            cache_dir.join("usage.json"),
+            r#"{
+                "fetched_at": "2026-04-29T17:33:41Z",
+                "response": {
+                    "five_hour": { "utilization": 40.0, "resets_at": "2026-04-29T19:30:00Z" },
+                    "seven_day": { "utilization": 60.0, "resets_at": "2026-05-05T18:00:00Z" }
+                }
+            }"#,
+        )
+        .expect("failed to write usage cache");
+        std::fs::write(cache_dir.join("usage.lock"), "").expect("failed to write lock");
+
+        let has_five_hour_err = predicate::str::contains("5h: \x1b[31merr");
+        let has_seven_day_err = predicate::str::contains("7d: \x1b[31merr");
+        let mut cmd = statusline();
+        cmd.env("HOME", home.path())
+            .current_dir(home.path())
+            .write_stdin("{}")
+            .assert()
+            .success()
+            .stdout(has_five_hour_err)
+            .stdout(has_seven_day_err);
+
+        let log = std::fs::read_to_string(cache_dir.join("error.log")).expect("log should exist");
+        assert!(!log.contains("expired"));
+    }
+
+    #[test]
     fn effort_renders_level() {
         let has_effort = predicate::str::contains("Thinking: high");
         let mut cmd = statusline();

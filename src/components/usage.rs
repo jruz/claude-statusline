@@ -173,7 +173,9 @@ fn render_window(label: &str, window: &Result<Window, Error>) -> String {
     {
         Ok(line) => line,
         Err(err) => {
-            logging::log_error("usage", &format!("{label} render: {err}"));
+            if !matches!(err, Error::Expired(_)) {
+                logging::log_error("usage", &format!("{label} render: {err}"));
+            }
             format!("{label}: {}", "err".red())
         }
     }
