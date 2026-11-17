@@ -1,5 +1,4 @@
 mod rust '.just/rust.justfile'
-mod release '.just/release.justfile'
 mod just '.just/just.justfile'
 mod oxfmt '.just/oxfmt.justfile'
 mod git '.just/git.justfile'
@@ -50,3 +49,7 @@ demo:
 readme-screenshot:
     sandbox cargo build --target {{ musl-target }}
     nu scripts/readme-screenshot.nu
+
+[positional-arguments]
+release +ARGS:
+    nu scripts/release.nu "$@"

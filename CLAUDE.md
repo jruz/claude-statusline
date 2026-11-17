@@ -34,7 +34,7 @@ Current version from `claude --version`. Latest version fetched from `https://re
 - `just tools::check`: Lint Nix, Nushell, Woodpecker and Renovate config
 - `just demo`: Run with sample data (builds musl debug binary, uses real cache/version)
 - `--debug`: Log raw stdin payload to `~/.cache/claude-statusline/error.log`
-- `just release::run build <target>`: Cross-compile one target triple, or `all`, with persistent Podman caches
+- `just release build <target>`: Cross-compile one target triple, or `all`, with persistent Podman caches
 - `just worktree-add <name>`: Create a new worktree with branch `<name>` at `../<name>`
 - `just worktree-remove <name>`: Remove worktree and delete branch `<name>`
 - `just readme-screenshot`: Regenerate `screenshot.png` for the README
@@ -66,12 +66,12 @@ CLI: `woodpecker-settings`. Config: `woodpecker-settings.yaml`. Manages CI secre
 
 ## Release
 
-- `just release::run bump <version>` updates Cargo manifests and commits the version bump.
+- `just release bump <version>` updates Cargo manifests and commits the version bump.
 - Push the bump to `main`; CI handles tagging and publishing.
-- `just release::run delete <tag>` deletes a published release and its tag.
+- `just release delete <tag>` deletes a published release and its tag.
 
 ## Release Pipeline
 
 1. `.woodpecker/check.yml` runs `just check` and `just test`
-2. `.woodpecker/tag.yml` extracts the `Cargo.toml` version and pushes `v<VERSION>`
-3. `.woodpecker/release.yml` builds Linux and macOS binaries, uploads them to the GitHub release and commits `release.json` for the flake
+2. `.woodpecker/release.yml` runs `just release publish` when `release.json` is behind the `Cargo.toml` version
+3. `publish` builds Linux and macOS binaries into a draft release, commits `release.json` from the draft assets, then publishes tag `v<VERSION>` on that commit
