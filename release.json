@@ -1,0 +1,21 @@
+{
+  "version": "0.4.4",
+  "platforms": {
+    "x86_64-linux": {
+      "asset": "claude-statusline-unknown-linux-musl-x86_64",
+      "hash": "sha256-QqqztOLDih1i7NmIULo6qoC3QEn/SDHcbWXo7zTATJs="
+    },
+    "aarch64-linux": {
+      "asset": "claude-statusline-unknown-linux-musl-aarch64",
+      "hash": "sha256-DhLZ4HBuwR46SyF1k2Mz3HumXNDtHsguBZKTFyTKtpg="
+    },
+    "x86_64-darwin": {
+      "asset": "claude-statusline-apple-darwin-x86_64",
+      "hash": "sha256-qBqTQV+nzCBwMMkTyBJE/QJjwWLkIEV1CV0pilX8nx4="
+    },
+    "aarch64-darwin": {
+      "asset": "claude-statusline-apple-darwin-aarch64",
+      "hash": "sha256-Halbr2T2ZM+5OvS/Ni8VeOHdE+sxyj3tzrJp4zcjQKw="
+    }
+  }
+}
