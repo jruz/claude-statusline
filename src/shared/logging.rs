@@ -28,7 +28,8 @@ pub fn open_log_file() -> Result<fs::File, std::io::Error> {
 
 fn rotate_if_full(path: &Path) -> Result<(), std::io::Error> {
     if is_full(path)? {
-        fs::rename(path, path.with_extension("log.1"))?;
+        let rotated_path = path.with_extension("log.1");
+        fs::rename(path, rotated_path)?;
     }
     Ok(())
 }

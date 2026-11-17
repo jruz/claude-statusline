@@ -79,7 +79,8 @@ pub fn parse_cache(content: &str) -> Result<Usage, Error> {
 
 fn reject_expired(window: Window) -> Result<Window, Error> {
     if window.resets_at <= Utc::now() {
-        return Err(Error::Expired(window.resets_at));
+        let expired = Error::Expired(window.resets_at);
+        return Err(expired);
     }
     Ok(window)
 }

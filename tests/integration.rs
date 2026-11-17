@@ -272,8 +272,9 @@ mod tests {
         let lock_path = cache_dir.join("usage.lock");
         std::fs::write(&lock_path, "").expect("failed to write lock");
 
+        let home_path = home.path();
         let mut cmd = statusline();
-        cmd.env("HOME", home.path())
+        cmd.env("HOME", home_path)
             .arg("--refresh-usage")
             .assert()
             .success();
@@ -291,8 +292,9 @@ mod tests {
         let lock_path = cache_dir.join("version.lock");
         std::fs::write(&lock_path, "").expect("failed to write lock");
 
+        let home_path = home.path();
         let mut cmd = statusline();
-        cmd.env("HOME", home.path())
+        cmd.env("HOME", home_path)
             .arg("--refresh-version")
             .assert()
             .success();
@@ -311,15 +313,16 @@ mod tests {
         let full_log = "x".repeat(2 * 1024 * 1024);
         std::fs::write(&log_path, &full_log).expect("failed to write log");
 
+        let home_path = home.path();
         let mut cmd = statusline();
-        cmd.env("HOME", home.path())
-            .current_dir(home.path())
+        cmd.env("HOME", home_path)
+            .current_dir(home_path)
             .write_stdin("{}")
             .assert()
             .success();
 
-        let rotated = std::fs::read_to_string(cache_dir.join("error.log.1"))
-            .expect("rotated log should exist");
+        let rotated_path = cache_dir.join("error.log.1");
+        let rotated = std::fs::read_to_string(rotated_path).expect("rotated log should exist");
         let current = std::fs::read_to_string(&log_path).expect("log should exist");
         assert_eq!(rotated.len(), full_log.len());
         assert!(current.contains("PLAN.md not found"));
@@ -331,8 +334,9 @@ mod tests {
         let home = tempfile::tempdir().expect("failed to create temp home");
         let cache_dir = home.path().join(".cache").join("claude-statusline");
         std::fs::create_dir_all(&cache_dir).expect("failed to create cache dir");
+        let cache_path = cache_dir.join("usage.json");
         std::fs::write(
-            cache_dir.join("usage.json"),
+            cache_path,
             r#"{
                 "fetched_at": "2026-04-29T17:33:41Z",
                 "response": {
@@ -342,20 +346,23 @@ mod tests {
             }"#,
         )
         .expect("failed to write usage cache");
-        std::fs::write(cache_dir.join("usage.lock"), "").expect("failed to write lock");
+        let lock_path = cache_dir.join("usage.lock");
+        std::fs::write(lock_path, "").expect("failed to write lock");
 
         let has_five_hour_err = predicate::str::contains("5h: \x1b[31merr");
         let has_seven_day_err = predicate::str::contains("7d: \x1b[31merr");
+        let home_path = home.path();
         let mut cmd = statusline();
-        cmd.env("HOME", home.path())
-            .current_dir(home.path())
+        cmd.env("HOME", home_path)
+            .current_dir(home_path)
             .write_stdin("{}")
             .assert()
             .success()
             .stdout(has_five_hour_err)
             .stdout(has_seven_day_err);
 
-        let log = std::fs::read_to_string(cache_dir.join("error.log")).expect("log should exist");
+        let log_path = cache_dir.join("error.log");
+        let log = std::fs::read_to_string(log_path).expect("log should exist");
         assert!(!log.contains("expired"));
     }
 
