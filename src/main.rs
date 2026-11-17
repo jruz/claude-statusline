@@ -247,7 +247,6 @@ fn write_cache(cache_path: &std::path::Path, cached: &impl serde::Serialize) -> 
 
 fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
     use crate::components::version;
-    use chrono::Utc;
 
     let lock_path = version::lock_path().ok_or_else(|| {
         shared::logging::log_error("version", "lock path not found");
@@ -258,14 +257,24 @@ fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    if matches!(shared::lock::state(&lock_path), shared::lock::State::Stale) {
-        cleanup_lock(&lock_path);
+    match shared::lock::state(&lock_path) {
+        shared::lock::State::Held => Ok(()),
+        shared::lock::State::Stale => {
+            cleanup_lock(&lock_path);
+            refresh_version(&lock_path, channel)
+        }
+        shared::lock::State::Free => refresh_version(&lock_path, channel),
     }
+}
+
+fn refresh_version(lock_path: &std::path::Path, channel: &Channel) -> color_eyre::Result<()> {
+    use crate::components::version;
+    use chrono::Utc;
 
     let lock_file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(&lock_path)
+        .open(lock_path)
         .map_err(|err| {
             shared::logging::log_error("version", &format!("lock acquire failed: {err}"));
             err
@@ -274,7 +283,6 @@ fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
 
     let latest_version = fetch_latest_version(channel).map_err(|err| {
         shared::logging::log_error("version", &format!("api: {err}"));
-        cleanup_lock(&lock_path);
         color_eyre::eyre::eyre!("api: {err}")
     })?;
 
@@ -285,17 +293,15 @@ fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
 
     let cache_path = version::cache_path().ok_or_else(|| {
         shared::logging::log_error("version", "cache path not found");
-        cleanup_lock(&lock_path);
         color_eyre::eyre::eyre!("cache path not found")
     })?;
 
     write_cache(&cache_path, &cached).map_err(|err| {
         shared::logging::log_error("version", &format!("cache write: {err}"));
-        cleanup_lock(&lock_path);
         color_eyre::eyre::eyre!("cache write: {err}")
     })?;
 
-    cleanup_lock(&lock_path);
+    cleanup_lock(lock_path);
     Ok(())
 }
 
