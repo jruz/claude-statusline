@@ -4,7 +4,6 @@ mod oxfmt '.just/oxfmt.justfile'
 mod git '.just/git.justfile'
 mod tools '.just/tools.justfile'
 
-musl-target := arch() + '-unknown-linux-musl'
 log-dir := home_directory() / '.cache' / 'claude-statusline'
 
 check:
@@ -42,10 +41,9 @@ worktree-remove NAME:
 
 demo:
     #!/usr/bin/env nu
-    ^sandbox cargo build --target {{ musl-target }}
     (open tests/fixtures/demo_stdin.json
         | to json --raw
-        | ^./target/docker/{{ musl-target }}/debug/claude-statusline)
+        | ^just rust::run)
 
 logs-tail:
     tail -f {{ log-dir }}/error.log
@@ -56,7 +54,7 @@ logs-clear:
     rm --force {{ log-dir }}/error.log.1
 
 readme-screenshot:
-    sandbox cargo build --target {{ musl-target }}
+    just rust::build-host
     nu scripts/readme-screenshot.nu
 
 [positional-arguments]

@@ -35,11 +35,12 @@ Current version from `claude --version`. Latest version fetched from `https://re
 - `just check`: Run lint and format checks
 - `just test`: Run Rust tests
 - `just tools::check`: Lint Nix, Nushell, Woodpecker and Renovate config
-- `just demo`: Run with sample data (builds musl debug binary, uses real cache/version)
 - `--debug`: Log raw stdin payload to `~/.cache/claude-statusline/error.log`
 - `just logs-tail`: Follow `~/.cache/claude-statusline/error.log`
 - `just logs-clear`: Empty the error log and remove its rotated copy
-- `just release build <target>`: Cross-compile one target triple, or `all`, with persistent Podman caches
+- `just rust::build <target> <profile>`: Cross-compile one target triple, or `all`, into `target/dist` with persistent Podman caches
+- `just install`: Cross-compile the host target with the `fast` profile into `~/.cargo/bin`
+- `just demo`: Pipe sample data through `just rust::run` (uses real cache/version)
 - `just worktree-add <name>`: Create a new worktree with branch `<name>` at `../<name>`
 - `just worktree-remove <name>`: Remove worktree and delete branch `<name>`
 - `just readme-screenshot`: Regenerate `screenshot.png` for the README

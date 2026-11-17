@@ -12,10 +12,14 @@ def iso [time: datetime]: nothing -> string {
 }
 
 
+def host-os []: nothing -> string {
+    if $nu.os-info.name == macos { 'apple-darwin' } else { 'unknown-linux-musl' }
+}
+
+
 def binary-path []: nothing -> path {
     let name = open Cargo.toml | get package.name
-    let target = $"($nu.os-info.arch)-unknown-linux-musl"
-    $"target/docker/($target)/debug/($name)" | path expand
+    $"target/dist/($name)-(host-os)-($nu.os-info.arch)" | path expand
 }
 
 
