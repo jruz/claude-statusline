@@ -84,34 +84,6 @@ pub fn lock_path() -> Option<PathBuf> {
     })
 }
 
-pub fn is_lock_stale(lock_path: &std::path::Path) -> bool {
-    let metadata = match std::fs::metadata(lock_path) {
-        Ok(meta) => meta,
-        Err(err) => {
-            if err.kind() == std::io::ErrorKind::NotFound {
-                return false;
-            }
-            logging::log_error("version", &format!("lock metadata error: {err}"));
-            return true;
-        }
-    };
-    let modified = match metadata.modified() {
-        Ok(mtime) => mtime,
-        Err(err) => {
-            logging::log_error("version", &format!("lock mtime error: {err}"));
-            return true;
-        }
-    };
-    let age = match std::time::SystemTime::now().duration_since(modified) {
-        Ok(dur) => dur,
-        Err(err) => {
-            logging::log_error("version", &format!("lock age error: {err}"));
-            return true;
-        }
-    };
-    age.as_secs() >= 300
-}
-
 pub fn parse_current(result: Result<String, std::io::Error>) -> Result<String, CurrentError> {
     let output = result.map_err(|err| {
         let msg = err.to_string();

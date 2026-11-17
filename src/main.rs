@@ -183,13 +183,13 @@ fn run_background_refresh() -> color_eyre::Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    match usage::lock_state(&lock_path) {
-        usage::LockState::Held => Ok(()),
-        usage::LockState::Stale => {
+    match shared::lock::state(&lock_path) {
+        shared::lock::State::Held => Ok(()),
+        shared::lock::State::Stale => {
             cleanup_lock(&lock_path);
             refresh_usage(&lock_path)
         }
-        usage::LockState::Free => refresh_usage(&lock_path),
+        shared::lock::State::Free => refresh_usage(&lock_path),
     }
 }
 
@@ -258,7 +258,7 @@ fn run_version_refresh(channel: &Channel) -> color_eyre::Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    if version::is_lock_stale(&lock_path) {
+    if matches!(shared::lock::state(&lock_path), shared::lock::State::Stale) {
         cleanup_lock(&lock_path);
     }
 

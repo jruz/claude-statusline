@@ -49,12 +49,6 @@ pub struct Response {
     pub seven_day: Window,
 }
 
-pub enum LockState {
-    Free,
-    Held,
-    Stale,
-}
-
 pub fn cache_path() -> Option<PathBuf> {
     dirs::home_dir().map(|dir| {
         dir.join(".cache")
@@ -69,44 +63,6 @@ pub fn lock_path() -> Option<PathBuf> {
             .join("claude-statusline")
             .join("usage.lock")
     })
-}
-
-pub fn lock_state(lock_path: &std::path::Path) -> LockState {
-    if !lock_path.exists() {
-        return LockState::Free;
-    }
-    if is_lock_stale(lock_path) {
-        return LockState::Stale;
-    }
-    LockState::Held
-}
-
-pub fn is_lock_stale(lock_path: &std::path::Path) -> bool {
-    let metadata = match std::fs::metadata(lock_path) {
-        Ok(meta) => meta,
-        Err(err) => {
-            if err.kind() == std::io::ErrorKind::NotFound {
-                return false;
-            }
-            logging::log_error("usage", &format!("lock metadata error: {err}"));
-            return true;
-        }
-    };
-    let modified = match metadata.modified() {
-        Ok(mtime) => mtime,
-        Err(err) => {
-            logging::log_error("usage", &format!("lock mtime error: {err}"));
-            return true;
-        }
-    };
-    let age = match std::time::SystemTime::now().duration_since(modified) {
-        Ok(dur) => dur,
-        Err(err) => {
-            logging::log_error("usage", &format!("lock age error: {err}"));
-            return true;
-        }
-    };
-    age.as_secs() >= 300
 }
 
 pub fn parse_cache(content: &str) -> Result<Usage, Error> {
@@ -301,30 +257,5 @@ mod tests {
 
         assert_eq!(response.five_hour.utilization.to_i64(), Some(95));
         assert_eq!(response.seven_day.utilization.to_i64(), Some(13));
-    }
-
-    #[test]
-    fn is_lock_stale_returns_true_for_old_lock() {
-        use std::fs::File;
-
-        let temp_dir = std::env::temp_dir().join("claude-statusline-test");
-        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
-        let lock_path = temp_dir.join("test.lock");
-
-        let lock_file = File::create(&lock_path).expect("create lock file");
-        drop(lock_file);
-
-        let now_secs = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("time since epoch")
-            .as_secs();
-        let past_secs = i64::try_from(now_secs).expect("secs to i64") - 600;
-
-        let mtime = filetime::FileTime::from_unix_time(past_secs, 0);
-        filetime::set_file_mtime(&lock_path, mtime).expect("set mtime");
-
-        assert!(is_lock_stale(&lock_path));
-
-        std::fs::remove_file(&lock_path).expect("cleanup test lock file");
     }
 }
