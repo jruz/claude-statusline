@@ -1,6 +1,4 @@
 {
-  description = "Claude Code statusline";
-
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-26.05";
     rust-overlay = {
@@ -14,8 +12,8 @@
     {
       self,
       nixpkgs,
-      rust-overlay,
       flake-utils,
+      rust-overlay,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
@@ -24,112 +22,89 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
         rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        rustToolchain = builtins.fromTOML (builtins.readFile ./rust-toolchain.toml);
-        rustVersion = rustToolchain.toolchain.channel;
-        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+        rustPlatform = pkgs.makeRustPlatform {
+          cargo = rust;
+          rustc = rust;
+        };
+        cargoToml = fromTOML (builtins.readFile ./Cargo.toml);
+        rustVersion = (fromTOML (builtins.readFile ./rust-toolchain.toml)).toolchain.channel;
+        projectName = cargoToml.package.name;
         revision = self.rev or "dirty";
-        sandboxPath = pkgs.lib.makeBinPath [
-          rust
-          pkgs.bash
-          pkgs.bun
-          pkgs.cargo-edit
-          pkgs.cargo-nextest
-          pkgs.cargo-outdated
-          pkgs.cargo-watch
-          pkgs.charm-freeze
-          pkgs.coreutils
-          pkgs.findutils
-          pkgs.git
-          pkgs.gnugrep
-          pkgs.gnused
-          pkgs.just
-          pkgs.nushell
-          pkgs.stdenv.cc
-          pkgs.woodpecker-cli
-        ];
+        release = builtins.fromJSON (builtins.readFile ./release.json);
+        platform = release.platforms.${system};
         sandbox = pkgs.writeShellScriptBin "sandbox" ''
-          SELF_DIR="$(dirname "$(readlink -f "$0")")"
-          ARGS=(
-            --unshare-all
-            --share-net
-            --die-with-parent
-            --ro-bind /nix /nix
-            --ro-bind /etc/resolv.conf /etc/resolv.conf
-            --ro-bind /etc/ssl /etc/ssl
-            --ro-bind-try /etc/static /etc/static
-            --ro-bind-try /etc/nix /etc/nix
-            --ro-bind-try /run/current-system/sw /run/current-system/sw
-            --symlink ${pkgs.coreutils}/bin/env /usr/bin/env
-            --symlink ${pkgs.bash}/bin/bash /bin/sh
-            --tmpfs "$HOME"
-            --bind "$(pwd)" "$(pwd)"
-            --bind /tmp /tmp
-            --ro-bind "$(git rev-parse --git-common-dir)" "$(git rev-parse --git-common-dir)"
-            --ro-bind-try "$HOME/.gitconfig" "$HOME/.gitconfig"
-            --ro-bind-try "$HOME/.ssh/known_hosts" "$HOME/.ssh/known_hosts"
-            --setenv PATH "${sandboxPath}:$SELF_DIR"
-            --setenv HOME "$HOME"
-            --dev /dev
-            --proc /proc
-          )
-          ARGS+=(
-            --bind-try "$HOME/.cargo/registry" "$HOME/.cargo/registry"
-            --bind-try "$HOME/.cargo/git" "$HOME/.cargo/git"
-            --bind-try "$HOME/.bun" "$HOME/.bun"
-          )
-          exec ${pkgs.bubblewrap}/bin/bwrap "''${ARGS[@]}" -- "$@"
+          export PATH=${
+            pkgs.lib.makeBinPath [
+              pkgs.docker-client
+              pkgs.git
+              pkgs.coreutils
+            ]
+          }:"$PATH"
+          exec ${pkgs.nushell}/bin/nu --no-config-file ${./scripts/sandbox.nu} "$@"
         '';
-        defaultPackages =
-          with pkgs;
-          [
-            babashka
-            clj-kondo
-            deadnix
-            fd
-            git
-            just
-            markdownlint-cli2
-            nixfmt
-            nu-lint
-            nushell
-            ripgrep
-            sandbox
-            statix
-            taplo
-            woodpecker-cli
-            yamllint
-            zprint
-          ]
-          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-            glibc
-            glibcLocales
-          ];
       in
       {
-        packages.default = pkgs.rustPlatform.buildRustPackage {
-          pname = cargoToml.package.name;
+        packages.default = pkgs.stdenvNoCC.mkDerivation {
+          pname = projectName;
+          inherit (release) version;
+          src = pkgs.fetchurl {
+            url = "https://github.com/jruz/${projectName}/releases/download/v${release.version}/${platform.asset}";
+            inherit (platform) hash;
+          };
+          dontUnpack = true;
+          dontStrip = true;
+          installPhase = ''
+            runHook preInstall
+            install -Dm755 "$src" "$out/bin/${projectName}"
+            install -Dm644 ${./LICENSE} "$out/share/licenses/${projectName}/LICENSE"
+            runHook postInstall
+          '';
+          meta = {
+            mainProgram = projectName;
+            license = pkgs.lib.licenses.eupl12;
+            platforms = builtins.attrNames release.platforms;
+          };
+        };
+
+        packages.source = rustPlatform.buildRustPackage {
+          pname = projectName;
           inherit (cargoToml.package) version;
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
+          postInstall = ''
+            install -Dm644 ${./LICENSE} "$out/share/licenses/${projectName}/LICENSE"
+          '';
+          meta = {
+            mainProgram = projectName;
+            license = pkgs.lib.licenses.eupl12;
+          };
           REVISION = revision;
           CARGO_HOME = "$TMPDIR";
           doCheck = false;
+          nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.mold ];
           buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = defaultPackages;
+          packages = with pkgs; [
+            fd
+            gh
+            git
+            just
+            nushell
+            oxfmt
+            podman
+            ripgrep
+            sandbox
+          ];
 
           shellHook = ''
             echo ""
-            echo "  ${cargoToml.package.name} Development Shell"
-            echo "  ───────────────────────────"
-            echo "  rustc ${rustVersion} (sandbox)"
-            echo "  bun ${pkgs.bun.version} (sandbox)"
+            echo "  Development Shell"
+            echo "  ─────────────────"
+            echo "  nixpkgs      ${pkgs.lib.trivial.release}"
+            echo "  rust         ${rustVersion} (docker)"
             echo ""
-          ''
-          + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-            export LOCALE_ARCHIVE="${pkgs.glibcLocales}/lib/locale/locale-archive"
           '';
         };
       }

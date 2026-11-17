@@ -109,12 +109,12 @@ struct Response {
 
 ## States
 
-| State | Condition | View |
-| --- | --- | --- |
-| Fresh | Cache exists and age < 60s | `5h: ━━━━━━━━━━  60% (2h 15m)` and `7d: ━━━━━━━━━━  40% (3d 12h)` |
-| Stale | Cache exists and age >= 60s | Same as Fresh (renders stale data, triggers background refresh) |
-| Unavailable | Cache missing or unreadable | `5h: err` and `7d: err` (red), triggers background refresh |
-| Invalid | Cache JSON does not parse | `5h: err` and `7d: err` (red), triggers background refresh |
+| State       | Condition                   | View                                                              |
+| ----------- | --------------------------- | ----------------------------------------------------------------- |
+| Fresh       | Cache exists and age < 60s  | `5h: ━━━━━━━━━━  60% (2h 15m)` and `7d: ━━━━━━━━━━  40% (3d 12h)` |
+| Stale       | Cache exists and age >= 60s | Same as Fresh (renders stale data, triggers background refresh)   |
+| Unavailable | Cache missing or unreadable | `5h: err` and `7d: err` (red), triggers background refresh        |
+| Invalid     | Cache JSON does not parse   | `5h: err` and `7d: err` (red), triggers background refresh        |
 
 A failed background refresh leaves the cache untouched, so the last successful response keeps rendering.
 
@@ -128,23 +128,23 @@ All errors are logged to `~/.cache/claude-statusline/error.log` with module `usa
 
 ### Main Process
 
-| Error | Cause | Behavior |
-| --- | --- | --- |
-| `CacheRead` | Cache file missing or unreadable | Render `err`, log unless not found |
-| `CacheParse` | Invalid cache JSON | Render `err`, log |
-| `InvalidUtilization` | Utilization not a number | Render `err` for that window, log |
+| Error                | Cause                            | Behavior                           |
+| -------------------- | -------------------------------- | ---------------------------------- |
+| `CacheRead`          | Cache file missing or unreadable | Render `err`, log unless not found |
+| `CacheParse`         | Invalid cache JSON               | Render `err`, log                  |
+| `InvalidUtilization` | Utilization not a number         | Render `err` for that window, log  |
 
 ### Background Refresh
 
 Errors are strings, logged with a prefix before the process exits.
 
-| Prefix | Cause | Lock |
-| --- | --- | --- |
-| `lock acquire failed` | Lock held by another refresh, or cannot be created | Untouched |
-| `credentials` | Credentials file and keychain both failed, or `accessToken` missing | Released |
-| `api` | Request failed, non-success status, or invalid JSON response | Released |
-| `cache path not found` | Home directory not found | Released |
-| `cache write` | Cache directory creation, serialization, or file write failed | Released |
+| Prefix                 | Cause                                                               | Lock      |
+| ---------------------- | ------------------------------------------------------------------- | --------- |
+| `lock acquire failed`  | Lock held by another refresh, or cannot be created                  | Untouched |
+| `credentials`          | Credentials file and keychain both failed, or `accessToken` missing | Released  |
+| `api`                  | Request failed, non-success status, or invalid JSON response        | Released  |
+| `cache path not found` | Home directory not found                                            | Released  |
+| `cache write`          | Cache directory creation, serialization, or file write failed       | Released  |
 
 ## Updates
 
@@ -181,7 +181,7 @@ Time remaining format:
 
 - < 1 hour: `Xm`
 - < 24 hours: `Xh Ym`
-- >= 24 hours: `Xd Yh`
+- > = 24 hours: `Xd Yh`
 
 ## Dependencies
 

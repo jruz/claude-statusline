@@ -1,15 +1,17 @@
+mod commands;
 mod components;
 mod effect;
 mod env;
 mod model;
 mod shared;
-mod version;
+mod utils;
 mod view;
 
 use components::version::Channel;
 use effect::execute;
 use model::init;
 use model::update;
+use utils::output::Output;
 
 const DEFAULT_API_URL: &str = "https://api.anthropic.com";
 
@@ -37,7 +39,10 @@ fn main() -> color_eyre::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let debug = args.iter().any(|arg| arg == "--debug");
     let output = match args.get(1).map(String::as_str) {
-        Some("--version") => version::clap_version().to_string(),
+        Some("--version") => {
+            let version = commands::version::run();
+            return print_output(&version);
+        }
         Some("--refresh-usage") => {
             install_panic_hook();
             return run_background_refresh();
@@ -63,6 +68,16 @@ fn main() -> color_eyre::Result<()> {
 
     let mut stdout = std::io::stdout();
     std::io::Write::write_fmt(&mut stdout, format_args!("{output}\n"))?;
+    Ok(())
+}
+
+fn print_output(output: &Output) -> color_eyre::Result<()> {
+    let mut stdout = std::io::stdout();
+    let bytes = output.text.as_bytes();
+    std::io::Write::write_all(&mut stdout, bytes)?;
+    if !output.success {
+        return Err(color_eyre::eyre::eyre!("command failed"));
+    }
     Ok(())
 }
 

@@ -1,174 +1,33 @@
-# bin projects only
-install:
-    sandbox cargo install \
-        --path . \
-        --locked \
-        --force \
-        --root target/dist
-    install \
-        --directory \
-        --mode=755 \
-        "$HOME/.cargo/bin"
-    install \
-        --mode=755 \
-        target/dist/bin/* \
-        "$HOME/.cargo/bin"
+mod rust '.just/rust.justfile'
+mod release '.just/release.justfile'
+mod just '.just/just.justfile'
+mod oxfmt '.just/oxfmt.justfile'
+mod git '.just/git.justfile'
+mod tools '.just/tools.justfile'
 
-rust-build:
-    sandbox cargo build --all-targets
-
-rust-cargo-check:
-    sandbox cargo check --all-targets
-
-rust-check:
-    just rust-cargo-check
-    just rust-fmt-check
-    just rust-clippy
-
-rust-fmt-check:
-    sandbox cargo fmt --all -- --check
-
-rust-clippy *ARGS='':
-    sandbox cargo clippy --all-targets {{ARGS}}
-
-rust-clippy-fix *ARGS='':
-    sandbox cargo clippy \
-        --fix \
-        --all-targets \
-        --allow-dirty \
-        {{ARGS}}
-
-rust-fix:
-    just rust-fmt-fix
-    just rust-clippy-fix
-
-rust-fmt-fix:
-    sandbox cargo fmt --all
-
-rust-outdated:
-    sandbox cargo outdated
-
-rust-test *FILTER='':
-    sandbox cargo nextest run \
-        --no-tests=pass \
-        {{FILTER}}
-
-rust-upgrade:
-    sandbox cargo upgrade --incompatible
-    sandbox cargo update
-
-woodpecker-check:
-    woodpecker-cli lint \
-        --strict \
-        .woodpecker/
-
-md-check:
-    markdownlint-cli2 '**/*.md'
-
-md-fix:
-    markdownlint-cli2 --fix '**/*.md'
-
-nix-check:
-    fd \
-        --extension nix \
-        --exec nixfmt --check
-    statix check .
-    deadnix --fail .
-
-nix-fix:
-    fd \
-        --extension nix \
-        --exec nixfmt
-    statix fix .
-    deadnix --edit .
-
-toml-check:
-    fd \
-        --extension toml \
-        --exec taplo format --check
-
-toml-fix:
-    fd \
-        --extension toml \
-        --exec taplo format
-
-[working-directory: 'scripts']
-nu-check:
-    #!/usr/bin/env nu
-    (^fd --absolute-path --extension nu
-        --exec nu --commands 'nu-check --debug {}')
-    ^nu-lint --config ../nu-lint.toml
-
-[working-directory: 'scripts']
-nu-fix:
-    nu-lint \
-        --config ../nu-lint.toml \
-        --fix
-
-clj-check:
-    fd \
-        --extension clj \
-        --exec zprint -c
-    fd \
-        --extension clj \
-        --exec clj-kondo \
-        --fail-level warning \
-        --lint
-
-clj-fix:
-    fd \
-        --extension clj \
-        --exec zprint -w
-
-yaml-check:
-    fd \
-        --extension yaml \
-        --extension yml \
-        --hidden \
-        --exec yamllint \
-        --strict \
-        --config-file .yamllint.yaml
-
-sandbox-check:
-    sandbox bun scripts/sandbox-check.ts
+musl-target := arch() + '-unknown-linux-musl'
 
 check:
-    just sandbox-check
-    just clj-check
-    just woodpecker-check
-    just md-check
-    just nix-check
-    just nu-check
-    just rust-check
-    just toml-check
-    just yaml-check
+    just just::fmt-check
+    just oxfmt::fmt-check
+    just rust::check
 
 fix:
-    just clj-fix
-    just rust-fix
-    just nix-fix
-    just nu-fix
-    just md-fix
-    just toml-fix
+    just just::fmt-fix
+    just oxfmt::fmt-fix
+    just rust::fix
+
+setup:
+    just git::hooks-setup
+
+install:
+    just rust::install
 
 test:
-    just rust-test
+    just rust::test
 
-release-build TARGET:
-    nu scripts/release-build.nu {{ TARGET }}
-
-release-build-all:
-    nu scripts/release-build.nu all
-
-release-bump VERSION:
-    nu scripts/release-bump.nu {{ VERSION }}
-
-release-upload TAG:
-    sandbox bun scripts/release-upload.ts {{ TAG }}
-
-release-delete TAG:
-    git tag --delete {{ TAG }}
-    sandbox bun scripts/release-delete.ts {{ TAG }}
+run *ARGS='':
+    just rust::run {{ ARGS }}
 
 worktree-add NAME:
     #!/usr/bin/env nu
@@ -183,11 +42,11 @@ worktree-remove NAME:
 
 demo:
     #!/usr/bin/env nu
-    ^just rust-build
+    ^sandbox cargo build --target {{ musl-target }}
     (open tests/fixtures/demo_stdin.json
         | to json --raw
-        | ^./target/debug/claude-statusline)
+        | ^./target/docker/{{ musl-target }}/debug/claude-statusline)
 
 readme-screenshot:
-    just rust-build
-    sandbox bun scripts/readme-screenshot.ts
+    sandbox cargo build --target {{ musl-target }}
+    nu scripts/readme-screenshot.nu

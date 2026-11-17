@@ -4,27 +4,60 @@ A terminal status line for Claude Code sessions.
 
 <img src="screenshot.png" width="600" alt="Screenshot of claude-statusline showing context, model, plan progress, and API usage">
 
-## Install
+## Install from releases
 
-### Nix Flake
+Download the binary for your platform from [the latest release](https://github.com/jruz/claude-statusline/releases/latest):
 
-```nix
-{
-  inputs.claude-statusline.url = "git+https://codeberg.org/jruz/claude-statusline.git?ref=refs/tags/v0.2.0";
+| Platform            | Download                                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Linux x86_64        | [Download](https://github.com/jruz/claude-statusline/releases/latest/download/claude-statusline-unknown-linux-musl-x86_64)  |
+| Linux ARM64         | [Download](https://github.com/jruz/claude-statusline/releases/latest/download/claude-statusline-unknown-linux-musl-aarch64) |
+| macOS Intel         | [Download](https://github.com/jruz/claude-statusline/releases/latest/download/claude-statusline-apple-darwin-x86_64)        |
+| macOS Apple Silicon | [Download](https://github.com/jruz/claude-statusline/releases/latest/download/claude-statusline-apple-darwin-aarch64)       |
 
-  outputs = { claude-statusline, ... }: {
-    # Add to your packages
-    environment.systemPackages = [
-      claude-statusline.packages.${system}.default
-    ];
-  };
-}
+For example, on Linux x86_64:
+
+```sh
+curl --fail --location --output claude-statusline \
+  https://github.com/jruz/claude-statusline/releases/latest/download/claude-statusline-unknown-linux-musl-x86_64
+chmod +x claude-statusline
+./claude-statusline --version
 ```
 
-### Cargo
+Move the binary into a directory on your `PATH` to run it from anywhere.
 
-```bash
-cargo install --path .
+## Install with Nix
+
+Requires Nix with flakes enabled.
+
+```sh
+nix profile add github:jruz/claude-statusline
+```
+
+Installs a published binary without compiling Rust. Supports Linux and macOS on x86_64 and aarch64.
+
+Verify the installation:
+
+```sh
+claude-statusline --version
+```
+
+Upgrade:
+
+```sh
+nix profile upgrade claude-statusline
+```
+
+Run without installing:
+
+```sh
+nix run github:jruz/claude-statusline -- --help
+```
+
+Build from source instead:
+
+```sh
+nix build github:jruz/claude-statusline#source
 ```
 
 ## Configuration
@@ -52,13 +85,13 @@ Add to `~/.claude/settings.json`:
 
 ### Data Sources
 
-| Component | Source |
-| --- | --- |
-| Context | `context_window.current_usage` (input + cache tokens) and `context_window.context_window_size` from stdin JSON, capped by `CLAUDE_CODE_AUTO_COMPACT_WINDOW` |
-| Model | `model.display_name` from stdin JSON |
-| Version | `claude --version` + npm registry for update check |
-| PLAN.md | Counts `- [x]` and `- [ ]` checkboxes in `./PLAN.md` |
-| 5h/7d | Anthropic API (`/api/oauth/usage`) via background fetch |
+| Component | Source                                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context   | `context_window.current_usage` (input + cache tokens) and `context_window.context_window_size` from stdin JSON, capped by `CLAUDE_CODE_AUTO_COMPACT_WINDOW` |
+| Model     | `model.display_name` from stdin JSON                                                                                                                        |
+| Version   | `claude --version` + npm registry for update check                                                                                                          |
+| PLAN.md   | Counts `- [x]` and `- [ ]` checkboxes in `./PLAN.md`                                                                                                        |
+| 5h/7d     | Anthropic API (`/api/oauth/usage`) via background fetch                                                                                                     |
 
 Claude Code pipes session JSON to stdin when invoking the statusline command.
 
@@ -92,4 +125,4 @@ Errors are appended to:
 
 ## License
 
-[0BSD](LICENSE)
+Licensed under the EUPL.

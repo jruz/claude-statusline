@@ -12,14 +12,14 @@ One-shot process invoked by Claude Code:
 
 ## Data Scope
 
-| Data | Source | Scope | Cached |
-| --- | --- | --- | --- |
-| context_window | stdin | Per-instance | No |
-| model | stdin | Per-instance | No |
-| effort | stdin | Per-instance | No |
-| plan | PLAN.md file | Per-instance | No |
-| usage | API | Shared (all instances) | Yes (60s TTL) |
-| version | CLI + npm API | Shared (all instances) | Yes (1h TTL) |
+| Data           | Source        | Scope                  | Cached        |
+| -------------- | ------------- | ---------------------- | ------------- |
+| context_window | stdin         | Per-instance           | No            |
+| model          | stdin         | Per-instance           | No            |
+| effort         | stdin         | Per-instance           | No            |
+| plan           | PLAN.md file  | Per-instance           | No            |
+| usage          | API           | Shared (all instances) | Yes (60s TTL) |
+| version        | CLI + npm API | Shared (all instances) | Yes (1h TTL)  |
 
 Multiple instances can run simultaneously. Each has independent stdin data, but all share the same caches at `~/.cache/claude-statusline/`.
 
@@ -117,10 +117,10 @@ Spawn effects run during step 2, before rendering.
 
 The same binary runs in refresh mode:
 
-| Argument | Function | Spec |
-| --- | --- | --- |
-| `--refresh-usage` | `run_background_refresh` | [usage](components/usage.md) |
-| `--refresh-version --channel <channel>` | `run_version_refresh` | [version](components/version.md) |
+| Argument                                | Function                 | Spec                             |
+| --------------------------------------- | ------------------------ | -------------------------------- |
+| `--refresh-usage`                       | `run_background_refresh` | [usage](components/usage.md)     |
+| `--refresh-version --channel <channel>` | `run_version_refresh`    | [version](components/version.md) |
 
 Both run sequentially: acquire lock, fetch, write cache, release lock. Errors are logged and release the lock.
 
@@ -146,21 +146,21 @@ Column widths using `unicode-width` for proper display width handling:
 
 ## Boundaries
 
-| System | Effect | Message |
-| --- | --- | --- |
-| Claude Code | ReadStdin | StdinReceived |
-| PLAN.md file | ReadFile | PlanLoaded |
-| Claude CLI | ReadVersion | VersionLoaded |
-| Cache file (usage) | ReadUsageCache | CacheLoaded |
-| Cache file (version) | ReadVersionCache | VersionCacheLoaded |
-| Log file | LogError | — |
-| Background (usage) | SpawnBackgroundRefresh | — |
-| Background (version) | SpawnVersionRefresh | — |
+| System               | Effect                 | Message            |
+| -------------------- | ---------------------- | ------------------ |
+| Claude Code          | ReadStdin              | StdinReceived      |
+| PLAN.md file         | ReadFile               | PlanLoaded         |
+| Claude CLI           | ReadVersion            | VersionLoaded      |
+| Cache file (usage)   | ReadUsageCache         | CacheLoaded        |
+| Cache file (version) | ReadVersionCache       | VersionCacheLoaded |
+| Log file             | LogError               | —                  |
+| Background (usage)   | SpawnBackgroundRefresh | —                  |
+| Background (version) | SpawnVersionRefresh    | —                  |
 
 ## Environment Variables
 
-| Variable | Description |
-| --- | --- |
+| Variable                          | Description                                                   |
+| --------------------------------- | ------------------------------------------------------------- |
 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | Caps the context window, see [context](components/context.md) |
 
 ## File Structure
@@ -194,10 +194,10 @@ Components are self-contained: each has its own error enum, parse function, and 
 
 ## Cache
 
-| Cache | Location | TTL | Lock |
-| --- | --- | --- | --- |
-| Usage | `~/.cache/claude-statusline/usage.json` | 60s | `usage.lock` |
-| Version | `~/.cache/claude-statusline/version.json` | 1h | `version.lock` |
+| Cache   | Location                                  | TTL | Lock           |
+| ------- | ----------------------------------------- | --- | -------------- |
+| Usage   | `~/.cache/claude-statusline/usage.json`   | 60s | `usage.lock`   |
+| Version | `~/.cache/claude-statusline/version.json` | 1h  | `version.lock` |
 
 Stale cache is rendered while the background refreshes. Locks are treated as stale after 300s.
 

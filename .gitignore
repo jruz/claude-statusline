@@ -1,6 +1,13 @@
+.direnv/
+/target/
+/tmp/*
+!/tmp/.gitkeep
+/node_modules/
 /PLAN.md
-/target
-.direnv
-.intentionally-empty-file.o
-.lsp
 result
+.intentionally-empty-file.o
+/*-unknown-linux-musl-*
+/*-apple-darwin-*
+
+# project entries below, everything above is managed by template-sync
+.lsp

@@ -59,11 +59,11 @@ enum Error {
 
 ## States
 
-| State | Condition | View |
-| --- | --- | --- |
-| Loading | Effect not yet executed (`None`) | `Context: ...` |
-| Available | `context_window_size` present (`Some(Ok(...))`) | `Context: ━━━━━━━━━━  15% (152k)` |
-| Unavailable | Read, parse, missing field, or invalid `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (`Some(Err(...))`) | `Context: err` (red) |
+| State       | Condition                                                                                   | View                              |
+| ----------- | ------------------------------------------------------------------------------------------- | --------------------------------- |
+| Loading     | Effect not yet executed (`None`)                                                            | `Context: ...`                    |
+| Available   | `context_window_size` present (`Some(Ok(...))`)                                             | `Context: ━━━━━━━━━━  15% (152k)` |
+| Unavailable | Read, parse, missing field, or invalid `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (`Some(Err(...))`) | `Context: err` (red)              |
 
 ## Error Handling
 
@@ -87,21 +87,21 @@ Data arrives via `StdinReceived` message. No caching or background refresh neede
 - Percentage right-aligned to 3 characters (e.g. `4%`, `76%`, `100%`)
 - Tokens formatting:
 
-| Tokens | Format |
-| --- | --- |
-| < 1,000 | `850` |
+| Tokens      | Format |
+| ----------- | ------ |
+| < 1,000     | `850`  |
 | < 1,000,000 | `152k` |
-| ≥ 1,000,000 | `1m` |
+| ≥ 1,000,000 | `1m`   |
 
 ## Bar Colors
 
 Bar color based on percentage. Text uses default color.
 
-| Range | Color |
-| --- | --- |
-| 0-31% | Green |
+| Range  | Color  |
+| ------ | ------ |
+| 0-31%  | Green  |
 | 32-74% | Yellow |
-| 75%+ | Red |
+| 75%+   | Red    |
 
 Rationale (400k window): quality is near full up to ~128k, declines gradually to ~300k, auto-compact fires at ~367k. Opus 5 holds 91.3% on 8-needle MRCR at 128K but averages 45.7% across 1M.
 

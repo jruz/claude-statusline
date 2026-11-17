@@ -100,14 +100,14 @@ struct Cached {
 
 ## States
 
-| State | Condition | View |
-| --- | --- | --- |
-| Loading | `version` or `current` is `None` | `Version: ...` |
-| Current only | `current` is `Some(Ok)`, `latest` is `None` | `Version: 1.0.17` |
-| Up to date | `current` is `Some(Ok)`, `latest` is `Some(Ok)`, current >= latest | `Version: 1.0.17` |
-| Update available | `current` is `Some(Ok)`, `latest` is `Some(Ok)`, current < latest | `Version: 1.0.17↑` (arrow in yellow) |
-| Current error | `current` is `Some(Err)` | `Version: err` (red) |
-| Latest error | `current` is `Some(Ok)`, `latest` is `Some(Err)` | `Version: 1.0.17` (no indicator, fail silent) |
+| State            | Condition                                                          | View                                          |
+| ---------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| Loading          | `version` or `current` is `None`                                   | `Version: ...`                                |
+| Current only     | `current` is `Some(Ok)`, `latest` is `None`                        | `Version: 1.0.17`                             |
+| Up to date       | `current` is `Some(Ok)`, `latest` is `Some(Ok)`, current >= latest | `Version: 1.0.17`                             |
+| Update available | `current` is `Some(Ok)`, `latest` is `Some(Ok)`, current < latest  | `Version: 1.0.17↑` (arrow in yellow)          |
+| Current error    | `current` is `Some(Err)`                                           | `Version: err` (red)                          |
+| Latest error     | `current` is `Some(Ok)`, `latest` is `Some(Err)`                   | `Version: 1.0.17` (no indicator, fail silent) |
 
 ## Error Handling
 
@@ -122,24 +122,24 @@ All errors are logged to `~/.cache/claude-statusline/error.log` with module `ver
 
 ### Main Process
 
-| Error | Cause | Behavior |
-| --- | --- | --- |
-| `CommandFailed` | `claude` command not found or failed | Render `err`, log |
-| `ParseFailed` | Empty `claude --version` output | Render `err`, log |
-| `CacheParse` | Invalid cache JSON | No indicator, log, triggers background refresh |
-| Cache read | Cache file missing or unreadable | No indicator, log unless not found, triggers background refresh |
-| Version compare | Version not `major.minor.patch` | No indicator, log |
+| Error           | Cause                                | Behavior                                                        |
+| --------------- | ------------------------------------ | --------------------------------------------------------------- |
+| `CommandFailed` | `claude` command not found or failed | Render `err`, log                                               |
+| `ParseFailed`   | Empty `claude --version` output      | Render `err`, log                                               |
+| `CacheParse`    | Invalid cache JSON                   | No indicator, log, triggers background refresh                  |
+| Cache read      | Cache file missing or unreadable     | No indicator, log unless not found, triggers background refresh |
+| Version compare | Version not `major.minor.patch`      | No indicator, log                                               |
 
 ### Background Refresh
 
 Errors are strings, logged with a prefix before the process exits.
 
-| Prefix | Cause | Lock |
-| --- | --- | --- |
-| `lock acquire failed` | Lock held by another refresh, or cannot be created | Untouched |
-| `api` | Request failed, non-success status, invalid JSON, or missing `version` field | Released |
-| `cache path not found` | Home directory not found | Released |
-| `cache write` | Cache directory creation, serialization, or file write failed | Released |
+| Prefix                 | Cause                                                                        | Lock      |
+| ---------------------- | ---------------------------------------------------------------------------- | --------- |
+| `lock acquire failed`  | Lock held by another refresh, or cannot be created                           | Untouched |
+| `api`                  | Request failed, non-success status, invalid JSON, or missing `version` field | Released  |
+| `cache path not found` | Home directory not found                                                     | Released  |
+| `cache write`          | Cache directory creation, serialization, or file write failed                | Released  |
 
 ## Updates
 
@@ -176,12 +176,12 @@ Prevents concurrent background refreshes. Created with `O_CREAT | O_EXCL`, delet
 
 Examples:
 
-| Current | Latest | Result |
-| --- | --- | --- |
-| `1.0.17` | `1.0.18` | Update available |
-| `1.0.17` | `1.0.17` | Current |
+| Current  | Latest   | Result                  |
+| -------- | -------- | ----------------------- |
+| `1.0.17` | `1.0.18` | Update available        |
+| `1.0.17` | `1.0.17` | Current                 |
 | `1.0.18` | `1.0.17` | Current (running newer) |
-| `1.0.17` | `2.0.0` | Update available |
+| `1.0.17` | `2.0.0`  | Update available        |
 
 ## Dependencies
 

@@ -22,14 +22,14 @@ pub fn render(percentage: f64, width: usize) -> String
 
 ### Examples
 
-| Input | Output |
-| --- | --- |
+| Input              | Output       |
+| ------------------ | ------------ |
 | `render(50.0, 10)` | `█████░░░░░` |
-| `render(0.0, 5)` | `░░░░░` |
-| `render(100.0, 5)` | `█████` |
+| `render(0.0, 5)`   | `░░░░░`      |
+| `render(100.0, 5)` | `█████`      |
 | `render(42.0, 10)` | `████░░░░░░` |
-| `render(-10.0, 5)` | `░░░░░` |
-| `render(150.0, 5)` | `█████` |
+| `render(-10.0, 5)` | `░░░░░`      |
+| `render(150.0, 5)` | `█████`      |
 
 ### File
 
@@ -56,17 +56,17 @@ pub fn format_remaining(target: chrono::DateTime<chrono::Utc>) -> String
 
 ### Examples
 
-| Time until target | Output |
-| --- | --- |
-| 45 minutes | `45m` |
-| 2 hours 15 minutes | `2h 15m` |
-| 3 days 12 hours | `3d 12h` |
-| -5 minutes (past) | `0m` |
-| 0 minutes | `0m` |
-| 59 minutes | `59m` |
-| 1 hour 0 minutes | `1h 0m` |
+| Time until target   | Output    |
+| ------------------- | --------- |
+| 45 minutes          | `45m`     |
+| 2 hours 15 minutes  | `2h 15m`  |
+| 3 days 12 hours     | `3d 12h`  |
+| -5 minutes (past)   | `0m`      |
+| 0 minutes           | `0m`      |
+| 59 minutes          | `59m`     |
+| 1 hour 0 minutes    | `1h 0m`   |
 | 23 hours 59 minutes | `23h 59m` |
-| 24 hours 0 minutes | `1d 0h` |
+| 24 hours 0 minutes  | `1d 0h`   |
 
 ### File
 
@@ -97,12 +97,12 @@ pub fn pad_right(text: &str, width: usize) -> String
 
 ### Examples
 
-| Input | Width | Output |
-| --- | --- | --- |
-| `"hello"` | 10 | `"hello     "` |
-| `"█████"` | 10 | `"█████     "` |
-| `"hello".red()` | 10 | `"\x1b[31mhello\x1b[0m     "` |
-| `"hello world"` | 5 | `"hello"` |
+| Input           | Width | Output                        |
+| --------------- | ----- | ----------------------------- |
+| `"hello"`       | 10    | `"hello     "`                |
+| `"█████"`       | 10    | `"█████     "`                |
+| `"hello".red()` | 10    | `"\x1b[31mhello\x1b[0m     "` |
+| `"hello world"` | 5     | `"hello"`                     |
 
 ### File
 

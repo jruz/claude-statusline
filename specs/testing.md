@@ -10,15 +10,15 @@
 
 ### Coverage
 
-| Area | Cases |
-| --- | --- |
-| Context | Percentage and token formatting, rounding, clamping, color thresholds, null usage, output tokens ignored, missing fields, invalid JSON |
-| Context window | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` applied, capped to model window, invalid value shows `err` |
-| Model | Display name, missing field shows `err` |
-| Effort | Level rendered as `Thinking:`, missing field shows `n/a` |
-| Plan | Checkbox progress, no checkboxes is 100%, missing file shows `file-not-found` |
-| Usage | Labels render without cache |
-| Full output | Three lines: Context, Model, 5h / PLAN.md, Thinking, 7d / Version |
+| Area           | Cases                                                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Percentage and token formatting, rounding, clamping, color thresholds, null usage, output tokens ignored, missing fields, invalid JSON |
+| Context window | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` applied, capped to model window, invalid value shows `err`                                           |
+| Model          | Display name, missing field shows `err`                                                                                                |
+| Effort         | Level rendered as `Thinking:`, missing field shows `n/a`                                                                               |
+| Plan           | Checkbox progress, no checkboxes is 100%, missing file shows `file-not-found`                                                          |
+| Usage          | Labels render without cache                                                                                                            |
+| Full output    | Three lines: Context, Model, 5h / PLAN.md, Thinking, 7d / Version                                                                      |
 
 ## Unit Tests
 

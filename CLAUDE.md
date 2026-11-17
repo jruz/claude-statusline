@@ -28,14 +28,13 @@ Current version from `claude --version`. Latest version fetched from `https://re
 
 ## Commands
 
+- `just setup`: Configure git hooks
 - `just check`: Run lint and format checks
 - `just test`: Run Rust tests
-- `just demo`: Run with sample data (builds debug binary, uses real cache/version)
+- `just tools::check`: Lint Nix, Nushell, Woodpecker and Renovate config
+- `just demo`: Run with sample data (builds musl debug binary, uses real cache/version)
 - `--debug`: Log raw stdin payload to `~/.cache/claude-statusline/error.log`
-- `just release-build <target>`: Build one target triple from `scripts/release-build.nu` using persistent Podman caches
-- `just release-build-all`: Build all release targets
-- `just release-upload <tag>`: Upload binaries to Codeberg release
-- `just release-delete <tag>`: Delete local tag, remote tag and Codeberg release
+- `just release::run build <target>`: Cross-compile one target triple, or `all`, with persistent Podman caches
 - `just worktree-add <name>`: Create a new worktree with branch `<name>` at `../<name>`
 - `just worktree-remove <name>`: Remove worktree and delete branch `<name>`
 - `just readme-screenshot`: Regenerate `screenshot.png` for the README
@@ -44,12 +43,19 @@ Current version from `claude --version`. Latest version fetched from `https://re
 
 When a change affects rendered output, run `just readme-screenshot`.
 
-## Codeberg Settings
+## Template Sync
 
-CLI: `codeberg-settings`. Config: `codeberg-settings.toml`. Manages repo description, topics, labels, merge config, releases.
+Shared tooling follows `jruz/template-rs`. `template-sync.json` records the synced revision.
 
-- `codeberg-settings plan`: Preview changes
-- `codeberg-settings apply`: Apply changes
+- `template-sync check`: Show pending template changes
+- `template-sync pull`: Apply template changes
+
+## GitHub Settings
+
+CLI: `github-settings`. Config: `github-settings.json`. Manages repo description, topics, labels, merge config, branch protection.
+
+- `github-settings plan`: Preview changes
+- `github-settings push`: Apply changes
 
 ## Woodpecker Settings
 
@@ -58,9 +64,14 @@ CLI: `woodpecker-settings`. Config: `woodpecker-settings.yaml`. Manages CI secre
 - `woodpecker-settings plan`: Preview changes
 - `woodpecker-settings apply`: Apply changes
 
+## Release
+
+- `just release::run bump <version>` updates Cargo manifests and commits the version bump.
+- Push the bump to `main`; CI handles tagging and publishing.
+- `just release::run delete <tag>` deletes a published release and its tag.
+
 ## Release Pipeline
 
-1. Bump version in `Cargo.toml`, push to main
-2. `.woodpecker/check.yml` runs `just check`, then `.woodpecker/tag.yml` AUTO_TAG extracts version and pushes `v<VERSION>` tag
-3. `.woodpecker/release.yml` triggers on tag: builds Linux and macOS binaries
-4. `scripts/release-upload.ts` uploads binaries to Codeberg release
+1. `.woodpecker/check.yml` runs `just check` and `just test`
+2. `.woodpecker/tag.yml` extracts the `Cargo.toml` version and pushes `v<VERSION>`
+3. `.woodpecker/release.yml` builds Linux and macOS binaries, uploads them to the GitHub release and commits `release.json` for the flake
